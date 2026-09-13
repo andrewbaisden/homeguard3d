@@ -1,10 +1,8 @@
 "use client";
 
-import type { StructuralModel } from "@homeguard/three-adapter";
 import dynamic from "next/dynamic";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
-import { type FloorData, FloorPlanCanvas } from "../floor-plan/floor-plan-canvas";
-import type { TwinDeviceState } from "./types";
+import { FloorPlanCanvas } from "../floor-plan/floor-plan-canvas";
 
 const Scene3D = dynamic(() => import("./scene-3d").then((module) => module.Scene3D), {
   ssr: false,
@@ -18,14 +16,10 @@ const Scene3D = dynamic(() => import("./scene-3d").then((module) => module.Scene
 function FloorPlanFallback({
   reason,
   propertyId,
-  floors,
-  sseBaseUrl,
   canEdit,
 }: {
   reason: string;
   propertyId: string;
-  floors: FloorData[];
-  sseBaseUrl: string;
   canEdit: boolean;
 }) {
   return (
@@ -33,12 +27,7 @@ function FloorPlanFallback({
       <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
         {reason} The live 2D floor plan is shown instead.
       </p>
-      <FloorPlanCanvas
-        propertyId={propertyId}
-        floors={floors}
-        sseBaseUrl={sseBaseUrl}
-        canEdit={canEdit}
-      />
+      <FloorPlanCanvas propertyId={propertyId} canEdit={canEdit} />
     </div>
   );
 }
@@ -79,17 +68,9 @@ function supportsWebGL(): boolean {
 
 export function Twin3DLoader({
   propertyId,
-  structuralModel,
-  initialDevices,
-  floors,
-  sseBaseUrl,
   canEdit,
 }: {
   propertyId: string;
-  structuralModel: StructuralModel;
-  initialDevices: TwinDeviceState[];
-  floors: FloorData[];
-  sseBaseUrl: string;
   canEdit: boolean;
 }) {
   const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
@@ -110,8 +91,6 @@ export function Twin3DLoader({
     <FloorPlanFallback
       reason="3D rendering is unavailable in this browser."
       propertyId={propertyId}
-      floors={floors}
-      sseBaseUrl={sseBaseUrl}
       canEdit={canEdit}
     />
   );
@@ -120,12 +99,7 @@ export function Twin3DLoader({
 
   return (
     <SceneErrorBoundary fallback={fallback}>
-      <Scene3D
-        propertyId={propertyId}
-        structuralModel={structuralModel}
-        initialDevices={initialDevices}
-        sseBaseUrl={sseBaseUrl}
-      />
+      <Scene3D propertyId={propertyId} />
     </SceneErrorBoundary>
   );
 }

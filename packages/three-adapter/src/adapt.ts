@@ -1,5 +1,8 @@
 import {
   type Point,
+  type StructuralFloor,
+  type StructuralModel,
+  type StructuralRoom,
   type WallOffset,
   boundsOfPolygons,
   fallbackDevicePosition,
@@ -25,46 +28,14 @@ export interface DomainUserData {
   domainType: "property" | "floor" | "room" | "door" | "window" | "device";
 }
 
-export interface StructuralDevice {
-  id: string;
-  label: string;
-  category: string;
-  roomId: string | null;
-  positionX: number | null;
-  positionY: number | null;
-}
-
-export interface StructuralOpening {
-  id: string;
-  wallOffset: WallOffset;
-  deviceId: string | null;
-}
-
-export interface StructuralDoor extends StructuralOpening {
-  isExterior: boolean;
-}
-
-export interface StructuralRoom {
-  id: string;
-  name: string;
-  kind: string;
-  polygon: Point[];
-  doors: StructuralDoor[];
-  windows: StructuralOpening[];
-  devices: StructuralDevice[];
-}
-
-export interface StructuralFloor {
-  id: string;
-  name: string;
-  level: number;
-  rooms: StructuralRoom[];
-}
-
-export interface StructuralModel {
-  propertyId: string;
-  floors: StructuralFloor[];
-}
+export type {
+  StructuralDevice,
+  StructuralDoor,
+  StructuralFloor,
+  StructuralModel,
+  StructuralOpening,
+  StructuralRoom,
+} from "@homeguard/domain";
 
 export interface FloorNode {
   id: string;

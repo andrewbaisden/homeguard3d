@@ -2,8 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { usePropertyEventStream } from "@/lib/use-property-event-stream";
-import { isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
+import { type DomainSelection, usePropertyStructure, useRealtimeStore } from "@homeguard/state";
 import {
   type DeviceAnchorNode,
   type OpeningNode,
@@ -17,8 +16,6 @@ import { Canvas, type ThreeEvent, useThree } from "@react-three/fiber";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { type Group, type MeshStandardMaterial, Shape } from "three";
 import type { TwinDeviceState } from "./types";
-
-type Selection = { id: string; type: "room" | "door" | "window" | "device" } | null;
 
 const ROOM_COLORS: Record<string, string> = {
   LIVING_ROOM: "#dbeafe",
@@ -67,7 +64,7 @@ const RoomSurface = memo(function RoomSurface({
 }: {
   room: RoomNode;
   selected: boolean;
-  onSelect: (selection: Selection) => void;
+  onSelect: (selection: DomainSelection) => void;
 }) {
   const shape = useMemo(() => {
     const nextShape = new Shape();
@@ -125,7 +122,7 @@ const OpeningMesh = memo(function OpeningMesh({
   opening: OpeningNode;
   device: TwinDeviceState | undefined;
   selected: boolean;
-  onSelect: (selection: Selection) => void;
+  onSelect: (selection: DomainSelection) => void;
 }) {
   const groupRef = useRef<Group>(null);
   const invalidate = useThree((state) => state.invalidate);
@@ -190,7 +187,7 @@ const DeviceAnchor = memo(function DeviceAnchor({
   anchor: DeviceAnchorNode;
   device: TwinDeviceState | undefined;
   selected: boolean;
-  onSelect: (selection: Selection) => void;
+  onSelect: (selection: DomainSelection) => void;
 }) {
   const groupRef = useRef<Group>(null);
   const materialRef = useRef<MeshStandardMaterial>(null);
@@ -250,8 +247,8 @@ function SceneContents({
   openings: OpeningNode[];
   anchors: DeviceAnchorNode[];
   devicesById: Map<string, TwinDeviceState>;
-  selection: Selection;
-  onSelect: (selection: Selection) => void;
+  selection: DomainSelection;
+  onSelect: (selection: DomainSelection) => void;
   boundsCenter: [number, number, number];
   groundY: number;
 }) {
@@ -329,39 +326,36 @@ function SceneContents({
 
 export function Scene3D({
   propertyId,
-  structuralModel,
-  initialDevices,
-  sseBaseUrl,
 }: {
   propertyId: string;
-  structuralModel: StructuralModel;
-  initialDevices: TwinDeviceState[];
-  sseBaseUrl: string;
 }) {
+  const structuralModel: StructuralModel = usePropertyStructure(propertyId);
+  const realtime = useRealtimeStore((state) => state.properties[propertyId]);
+  const select = useRealtimeStore((state) => state.select);
   const graph = useMemo(() => buildSceneGraph(structuralModel), [structuralModel]);
   const [activeFloorId, setActiveFloorId] = useState(graph.floors[0]?.id ?? "");
   const [showAllFloors, setShowAllFloors] = useState(graph.floors.length <= 1);
-  const [selection, setSelection] = useState<Selection>(null);
-  const [devices, setDevices] = useState(initialDevices);
+  const selection = realtime?.selected ?? null;
+  const connectionState = realtime?.connectionState ?? "connecting";
+  const lastEventAt = realtime?.lastEventAt ?? null;
 
-  useEffect(() => setDevices(initialDevices), [initialDevices]);
-
-  const { connectionState, lastEventAt } = usePropertyEventStream({
-    propertyId,
-    sseBaseUrl,
-    onEvent: (event) => {
-      if (!isDeviceStateEvent(event)) return;
-      const patch = reduceDeviceEvent(event);
-      setDevices((previous) =>
-        previous.map((device) => (device.id === event.deviceId ? { ...device, ...patch } : device)),
-      );
-    },
-  });
-
-  const devicesById = useMemo(
-    () => new Map(devices.map((device) => [device.id, device])),
-    [devices],
-  );
+  const devicesById = useMemo(() => {
+    const result = new Map<string, TwinDeviceState>();
+    for (const floor of structuralModel.floors) {
+      for (const room of floor.rooms) {
+        for (const device of room.devices) {
+          const operational = realtime?.devicesById[device.id];
+          if (operational)
+            result.set(device.id, {
+              ...operational,
+              label: device.label,
+              category: device.category,
+            });
+        }
+      }
+    }
+    return result;
+  }, [realtime?.devicesById, structuralModel.floors]);
   const visibleFloorIds = useMemo(
     () => new Set(showAllFloors ? graph.floors.map((floor) => floor.id) : [activeFloorId]),
     [activeFloorId, graph.floors, showAllFloors],
@@ -393,7 +387,7 @@ export function Scene3D({
               onClick={() => {
                 setActiveFloorId(floor.id);
                 setShowAllFloors(false);
-                setSelection(null);
+                select(propertyId, null);
               }}
             >
               {floor.name}
@@ -405,7 +399,7 @@ export function Scene3D({
               variant={showAllFloors ? "default" : "outline"}
               onClick={() => {
                 setShowAllFloors(true);
-                setSelection(null);
+                select(propertyId, null);
               }}
             >
               Dollhouse
@@ -438,7 +432,7 @@ export function Scene3D({
             dpr={[1, 2]}
             frameloop="demand"
             camera={{ position: [10, 10, 10], fov: 42, near: 0.05, far: 250 }}
-            onPointerMissed={() => setSelection(null)}
+            onPointerMissed={() => select(propertyId, null)}
           >
             <SceneContents
               key={`${showAllFloors ? "all" : activeFloorId}:${visibleRooms.length}`}
@@ -448,7 +442,7 @@ export function Scene3D({
               anchors={visibleAnchors}
               devicesById={devicesById}
               selection={selection}
-              onSelect={setSelection}
+              onSelect={(next) => select(propertyId, next)}
               boundsCenter={graph.bounds.center}
               groundY={graph.bounds.minY}
             />
@@ -481,6 +475,11 @@ export function Scene3D({
                   {selectedDevice.connectivity}
                 </Badge>
               </div>
+              {selectedDevice.source === "SIMULATION" && (
+                <Badge variant="secondary" className="w-fit">
+                  SIMULATED
+                </Badge>
+              )}
               <p className="text-xs text-neutral-500">
                 {selectedDevice.category.replaceAll("_", " ")}
               </p>
@@ -506,7 +505,7 @@ export function Scene3D({
                   variant={
                     selection?.type === "room" && selection.id === room.id ? "default" : "outline"
                   }
-                  onClick={() => setSelection({ id: room.id, type: "room" })}
+                  onClick={() => select(propertyId, { id: room.id, type: "room" })}
                 >
                   {room.name}
                 </Button>
@@ -524,7 +523,7 @@ export function Scene3D({
                   key={anchor.id}
                   type="button"
                   className="flex items-center gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => setSelection({ id: anchor.id, type: "device" })}
+                  onClick={() => select(propertyId, { id: anchor.id, type: "device" })}
                 >
                   <span
                     className="size-2.5 shrink-0 rounded-full"
@@ -532,6 +531,7 @@ export function Scene3D({
                     aria-hidden="true"
                   />
                   {anchor.label}
+                  {devicesById.get(anchor.id)?.source === "SIMULATION" ? " · SIM" : ""}
                 </button>
               ))}
               {visibleAnchors.length === 0 && (

@@ -11,10 +11,6 @@ import { NewRoomForm } from "./new-room-form";
 import { NewWindowForm } from "./new-window-form";
 import { SecurityControl } from "./security-control";
 
-// Opened directly by the browser against the realtime service — see
-// ARCHITECTURE.md section J. Falls back to the local dev default.
-const REALTIME_SSE_BASE_URL = process.env.NEXT_PUBLIC_REALTIME_SSE_URL ?? "http://localhost:8080";
-
 type WallOffset = { wallSegmentIndex: number; offsetMeters: number; widthMeters: number };
 
 function wallLabel(offset: unknown): string {
@@ -97,7 +93,6 @@ export default async function PropertyPage({
           machineState: property.securityState?.machineState ?? "IDLE_DISARMED",
           mode: property.securityState?.mode ?? "DISARMED",
         }}
-        sseBaseUrl={REALTIME_SSE_BASE_URL}
       />
 
       <Card>

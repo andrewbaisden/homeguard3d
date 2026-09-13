@@ -9,6 +9,7 @@ import {
 function fixture(): StructuralModel {
   return {
     propertyId: "property-1",
+    propertyName: "Test home",
     floors: [
       {
         id: "floor-1",
@@ -48,6 +49,7 @@ function fixture(): StructuralModel {
                 roomId: "room-1",
                 positionX: null,
                 positionY: null,
+                capabilities: ["MOTION"],
               },
               {
                 id: "device-door",
@@ -56,6 +58,7 @@ function fixture(): StructuralModel {
                 roomId: "room-1",
                 positionX: 1.5,
                 positionY: 0.3,
+                capabilities: ["CONTACT"],
               },
             ],
           },

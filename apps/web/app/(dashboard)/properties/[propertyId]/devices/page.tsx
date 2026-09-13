@@ -8,10 +8,6 @@ import type { DeviceRow } from "./device-table";
 import { DeviceTable } from "./device-table";
 import { NewDeviceForm } from "./new-device-form";
 
-// Opened directly by the browser against the realtime service — see
-// ARCHITECTURE.md section J. Falls back to the local dev default.
-const REALTIME_SSE_BASE_URL = process.env.NEXT_PUBLIC_REALTIME_SSE_URL ?? "http://localhost:8080";
-
 export default async function DevicesPage({
   params,
 }: {
@@ -80,6 +76,7 @@ export default async function DevicesPage({
     tempC: device.tempC,
     humidityPct: device.humidityPct,
     stateUpdatedAt: device.stateUpdatedAt?.toISOString() ?? null,
+    source: null,
   }));
 
   return (
@@ -103,11 +100,7 @@ export default async function DevicesPage({
         </CardContent>
       </Card>
 
-      <DeviceTable
-        propertyId={property.id}
-        initialDevices={devices}
-        sseBaseUrl={REALTIME_SSE_BASE_URL}
-      />
+      <DeviceTable propertyId={property.id} initialDevices={devices} />
     </div>
   );
 }

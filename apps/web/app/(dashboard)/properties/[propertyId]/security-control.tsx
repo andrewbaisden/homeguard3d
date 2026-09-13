@@ -2,14 +2,9 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  type SecurityMachineState,
-  type SecurityMode,
-  domainEventSchema,
-  mapToSecurityDomainEvent,
-  transition,
-} from "@homeguard/domain";
-import { useEffect, useState } from "react";
+import type { SecurityMachineState, SecurityMode } from "@homeguard/domain";
+import { useRealtimeStore } from "@homeguard/state";
+import { useState } from "react";
 import { armSecurity, cancelArm, disarmSecurity } from "./security-actions";
 
 export interface SecuritySnapshot {
@@ -36,40 +31,18 @@ function badgeVariant(machineState: SecurityMachineState): "outline" | "secondar
 export function SecurityControl({
   propertyId,
   initial,
-  sseBaseUrl,
 }: {
   propertyId: string;
   initial: SecuritySnapshot;
-  sseBaseUrl: string;
 }) {
-  const [snapshot, setSnapshot] = useState(initial);
+  const snapshot = useRealtimeStore((state) => state.properties[propertyId]?.security) ?? {
+    ...initial,
+    changedAt: new Date(0).toISOString(),
+    source: null,
+  };
   const [pendingMode, setPendingMode] = useState<SecurityMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setSnapshot(initial);
-  }, [initial]);
-
-  useEffect(() => {
-    const source = new EventSource(`${sseBaseUrl}/realtime/${propertyId}/stream`);
-    source.onmessage = (message) => {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(message.data);
-      } catch {
-        return;
-      }
-      const parsed = domainEventSchema.safeParse(raw);
-      if (!parsed.success) return;
-
-      const securityEvent = mapToSecurityDomainEvent(parsed.data);
-      if (!securityEvent) return;
-
-      setSnapshot((current) => transition(current, securityEvent).next);
-    };
-    return () => source.close();
-  }, [propertyId, sseBaseUrl]);
 
   async function handleArm(mode: SecurityMode, override = false) {
     if (mode === "DISARMED") return;
@@ -120,6 +93,11 @@ export function SecurityControl({
         </div>
         <Badge variant={badgeVariant(machineState)}>{MACHINE_STATE_LABEL[machineState]}</Badge>
       </div>
+      {snapshot.source === "SIMULATION" && (
+        <Badge variant="secondary" className="w-fit">
+          SIMULATED
+        </Badge>
+      )}
 
       {machineState === "IDLE_DISARMED" && (
         <div className="flex flex-wrap gap-2">

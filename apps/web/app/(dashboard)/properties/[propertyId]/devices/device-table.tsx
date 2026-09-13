@@ -1,9 +1,9 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { usePropertyEventStream } from "@/lib/use-property-event-stream";
-import { isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
-import { useEffect, useState } from "react";
+import type { EventSource } from "@homeguard/domain";
+import { useRealtimeStore } from "@homeguard/state";
+import { Fragment } from "react";
 
 export interface DeviceRow {
   id: string;
@@ -20,6 +20,7 @@ export interface DeviceRow {
   tempC: number | null;
   humidityPct: number | null;
   stateUpdatedAt: string | null;
+  source: EventSource | null;
 }
 
 function formatState(device: DeviceRow): string {
@@ -45,43 +46,22 @@ function connectivityVariant(connectivity: string): "outline" | "secondary" | "d
  * architecture: the client applies incoming events through the exact
  * same pure reducer (`reduceDeviceEvent`) the realtime service uses at
  * ingestion, imported from @homeguard/domain. See ARCHITECTURE.md
- * section M. The full Zustand-backed store lands in Phase 8; this
- * component's local state is this page's own scoped equivalent.
+ * section M. Operational state comes from the same normalized Zustand
+ * records consumed by the 2D and 3D renderers.
  */
 export function DeviceTable({
   propertyId,
   initialDevices,
-  sseBaseUrl,
 }: {
   propertyId: string;
   initialDevices: DeviceRow[];
-  sseBaseUrl: string;
 }) {
-  const [devices, setDevices] = useState(initialDevices);
-
-  // initialDevices is a new array every time the server re-renders this
-  // route (e.g. a server action's revalidatePath after adding a device).
-  // useState's initializer only runs once, so without this the table
-  // would keep showing whatever was on the page at first mount.
-  useEffect(() => {
-    setDevices(initialDevices);
-  }, [initialDevices]);
-
-  const { connectionState } = usePropertyEventStream({
-    propertyId,
-    sseBaseUrl,
-    onEvent: (event) => {
-      if (!isDeviceStateEvent(event)) return;
-      const patch = reduceDeviceEvent(event);
-      setDevices((prev) =>
-        prev.map((device) =>
-          device.id === event.deviceId
-            ? { ...device, ...patch, stateUpdatedAt: event.occurredAt }
-            : device,
-        ),
-      );
-    },
-  });
+  const realtime = useRealtimeStore((state) => state.properties[propertyId]);
+  const connectionState = realtime?.connectionState ?? "connecting";
+  const devices = initialDevices.map((device) => ({
+    ...device,
+    ...(realtime?.devicesById[device.id] ?? {}),
+  }));
 
   return (
     <div className="flex flex-col gap-3">
@@ -108,24 +88,36 @@ export function DeviceTable({
             </thead>
             <tbody>
               {devices.map((device) => (
-                <tr key={device.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-medium">{device.label}</td>
-                  <td className="px-3 py-2 text-neutral-600">
-                    {device.category.replaceAll("_", " ")}
-                  </td>
-                  <td className="px-3 py-2 text-neutral-600">{device.roomName ?? "Unassigned"}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={connectivityVariant(device.connectivity)}>
-                      {device.connectivity}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2 text-neutral-600">{formatState(device)}</td>
-                  <td className="px-3 py-2 text-neutral-400">
-                    {device.stateUpdatedAt
-                      ? new Date(device.stateUpdatedAt).toLocaleTimeString()
-                      : "—"}
-                  </td>
-                </tr>
+                <Fragment key={device.id}>
+                  <tr className="border-b last:border-0">
+                    <td className="px-3 py-2 font-medium">{device.label}</td>
+                    <td className="px-3 py-2 text-neutral-600">
+                      {device.category.replaceAll("_", " ")}
+                    </td>
+                    <td className="px-3 py-2 text-neutral-600">
+                      {device.roomName ?? "Unassigned"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={connectivityVariant(device.connectivity)}>
+                        {device.connectivity}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-neutral-600">{formatState(device)}</td>
+                    <td className="px-3 py-2 text-neutral-400">
+                      {device.stateUpdatedAt
+                        ? new Date(device.stateUpdatedAt).toLocaleTimeString()
+                        : "—"}
+                    </td>
+                  </tr>
+                  {device.source === "SIMULATION" && (
+                    <tr className="border-b last:border-0">
+                      <td className="px-3 pb-2 text-xs text-violet-700" colSpan={6}>
+                        <Badge variant="secondary">SIMULATED</Badge> Latest state came from the
+                        simulation provider.
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

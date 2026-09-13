@@ -2,54 +2,25 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { usePropertyEventStream } from "@/lib/use-property-event-stream";
 import {
   type Point,
-  type WallOffset,
+  type StructuralFloor,
   boundsOfPolygons,
   fallbackDevicePosition,
-  isDeviceStateEvent,
   polygonCentroid,
-  reduceDeviceEvent,
   wallOffsetSpan,
 } from "@homeguard/domain";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type DeviceOperationalState,
+  usePropertyStructure,
+  useRealtimeStore,
+  useUpdateDevicePosition,
+} from "@homeguard/state";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { setDevicePosition } from "./actions";
 
-export interface DeviceMarker {
-  id: string;
-  label: string;
-  category: string;
-  roomId: string | null;
-  connectivity: string;
-  doorState: string | null;
-  lockState: string | null;
-  motionState: string | null;
-  cameraState: string | null;
-  batteryPct: number | null;
-  tempC: number | null;
-  humidityPct: number | null;
-  positionX: number | null;
-  positionY: number | null;
-  capabilities: string[];
-}
-
-export interface RoomData {
-  id: string;
-  name: string;
-  kind: string;
-  polygon: Point[];
-  doors: Array<{ id: string; wallOffset: WallOffset; isExterior: boolean }>;
-  windows: Array<{ id: string; wallOffset: WallOffset }>;
-  devices: DeviceMarker[];
-}
-
-export interface FloorData {
-  id: string;
-  name: string;
-  level: number;
-  rooms: RoomData[];
-}
+export type DeviceMarker = StructuralFloor["rooms"][number]["devices"][number] &
+  DeviceOperationalState;
 
 function formatState(device: DeviceMarker): string {
   const parts: string[] = [];
@@ -91,45 +62,28 @@ function clientPointToSvgPoint(svg: SVGSVGElement, clientX: number, clientY: num
 /**
  * The 2D floor plan — an SVG rendered directly from structural geometry
  * (Room.polygon, Door/Window wallOffset) plus live operational state
- * from the same SSE stream every other view uses. See ARCHITECTURE.md
- * section K. Selection state is local to this component for now — the
- * shared Zustand selection store lands in Phase 8, once the 3D view
- * exists to synchronize with.
+ * from the property layout's single SSE-backed Zustand store. Structural
+ * data comes from the same TanStack Query entry the 3D route consumes.
  */
 export function FloorPlanCanvas({
   propertyId,
-  floors,
-  sseBaseUrl,
   canEdit = false,
 }: {
   propertyId: string;
-  floors: FloorData[];
-  sseBaseUrl: string;
   canEdit?: boolean;
 }) {
+  const structure = usePropertyStructure(propertyId);
+  const realtime = useRealtimeStore((state) => state.properties[propertyId]);
+  const select = useRealtimeStore((state) => state.select);
+  const updateCachedPosition = useUpdateDevicePosition(propertyId);
+  const floors = structure.floors;
   const [activeFloorId, setActiveFloorId] = useState(floors[0]?.id ?? "");
-  const [devices, setDevices] = useState<DeviceMarker[]>(() =>
-    floors.flatMap((floor) => floor.rooms.flatMap((room) => room.devices)),
-  );
-  const [selection, setSelection] = useState<{ type: "room" | "device"; id: string } | null>(null);
   const [placingDeviceId, setPlacingDeviceId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    setDevices(floors.flatMap((floor) => floor.rooms.flatMap((room) => room.devices)));
-  }, [floors]);
-
-  const { connectionState, lastEventAt } = usePropertyEventStream({
-    propertyId,
-    sseBaseUrl,
-    onEvent: (event) => {
-      if (!isDeviceStateEvent(event)) return;
-      const patch = reduceDeviceEvent(event);
-      setDevices((prev) =>
-        prev.map((device) => (device.id === event.deviceId ? { ...device, ...patch } : device)),
-      );
-    },
-  });
+  const selection = realtime?.selected ?? null;
+  const connectionState = realtime?.connectionState ?? "connecting";
+  const lastEventAt = realtime?.lastEventAt ?? null;
+  const devicesById = realtime?.devicesById ?? {};
 
   const activeFloor = floors.find((floor) => floor.id === activeFloorId) ?? floors[0];
 
@@ -137,9 +91,12 @@ export function FloorPlanCanvas({
     if (!activeFloor) return [];
     return activeFloor.rooms.map((room) => ({
       ...room,
-      devices: room.devices.map((device) => devices.find((d) => d.id === device.id) ?? device),
+      devices: room.devices.flatMap((device) => {
+        const operational = devicesById[device.id];
+        return operational ? [{ ...device, ...operational }] : [];
+      }),
     }));
-  }, [activeFloor, devices]);
+  }, [activeFloor, devicesById]);
 
   const bounds = useMemo(
     () => boundsOfPolygons(roomsWithLiveDevices.map((room) => room.polygon)),
@@ -153,7 +110,9 @@ export function FloorPlanCanvas({
   const selectedRoom =
     selection?.type === "room" ? roomsWithLiveDevices.find((r) => r.id === selection.id) : null;
   const selectedDevice =
-    selection?.type === "device" ? devices.find((d) => d.id === selection.id) : null;
+    selection?.type === "device"
+      ? roomsWithLiveDevices.flatMap((room) => room.devices).find((d) => d.id === selection.id)
+      : null;
   const selectedDeviceRoom = selectedDevice
     ? roomsWithLiveDevices.find((r) => r.id === selectedDevice.roomId)
     : null;
@@ -162,11 +121,7 @@ export function FloorPlanCanvas({
     if (!placingDeviceId || !svgRef.current) return;
     const point = clientPointToSvgPoint(svgRef.current, event.clientX, event.clientY);
     setPlacingDeviceId(null);
-    setDevices((prev) =>
-      prev.map((d) =>
-        d.id === placingDeviceId ? { ...d, positionX: point.x, positionY: point.y } : d,
-      ),
-    );
+    updateCachedPosition(placingDeviceId, point.x, point.y);
     await setDevicePosition(propertyId, { deviceId: placingDeviceId, x: point.x, y: point.y });
   }
 
@@ -181,7 +136,7 @@ export function FloorPlanCanvas({
               variant={floor.id === activeFloor?.id ? "default" : "outline"}
               onClick={() => {
                 setActiveFloorId(floor.id);
-                setSelection(null);
+                select(propertyId, null);
                 setPlacingDeviceId(null);
               }}
             >
@@ -257,14 +212,14 @@ export function FloorPlanCanvas({
                     onClick={(event) => {
                       if (placingDeviceId) return;
                       event.stopPropagation();
-                      setSelection({ type: "room", id: room.id });
+                      select(propertyId, { type: "room", id: room.id });
                     }}
                     onKeyDown={(event) => {
                       if (placingDeviceId) return;
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
                         event.stopPropagation();
-                        setSelection({ type: "room", id: room.id });
+                        select(propertyId, { type: "room", id: room.id });
                       }
                     }}
                   >
@@ -326,35 +281,49 @@ export function FloorPlanCanvas({
                       selection?.type === "device" && selection.id === device.id;
 
                     return (
-                      <circle
-                        key={device.id}
-                        cx={position.x}
-                        cy={position.y}
-                        r={isDeviceSelected ? 0.32 : 0.25}
-                        strokeWidth={0.05}
-                        className={`cursor-pointer outline-none ${markerClassName(device)}`}
-                        tabIndex={placingDeviceId ? -1 : 0}
-                        // biome-ignore lint/a11y/useSemanticElements: an SVG <circle> can't be a real <button>.
-                        role="button"
-                        aria-label={`Select ${device.label}`}
-                        onClick={(event) => {
-                          if (placingDeviceId) return;
-                          event.stopPropagation();
-                          setSelection({ type: "device", id: device.id });
-                        }}
-                        onKeyDown={(event) => {
-                          if (placingDeviceId) return;
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
+                      <Fragment key={device.id}>
+                        <circle
+                          key={device.id}
+                          cx={position.x}
+                          cy={position.y}
+                          r={isDeviceSelected ? 0.32 : 0.25}
+                          strokeWidth={0.05}
+                          className={`cursor-pointer outline-none ${markerClassName(device)}`}
+                          tabIndex={placingDeviceId ? -1 : 0}
+                          // biome-ignore lint/a11y/useSemanticElements: an SVG <circle> can't be a real <button>.
+                          role="button"
+                          aria-label={`Select ${device.label}`}
+                          onClick={(event) => {
+                            if (placingDeviceId) return;
                             event.stopPropagation();
-                            setSelection({ type: "device", id: device.id });
-                          }
-                        }}
-                      >
-                        <title>
-                          {device.label} · {device.connectivity}
-                        </title>
-                      </circle>
+                            select(propertyId, { type: "device", id: device.id });
+                          }}
+                          onKeyDown={(event) => {
+                            if (placingDeviceId) return;
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              select(propertyId, { type: "device", id: device.id });
+                            }
+                          }}
+                        >
+                          <title>
+                            {device.label} · {device.connectivity}
+                            {device.source === "SIMULATION" ? " · SIMULATED" : ""}
+                          </title>
+                        </circle>
+                        {device.source === "SIMULATION" && (
+                          <text
+                            x={position.x}
+                            y={position.y - 0.38}
+                            fontSize={0.16}
+                            textAnchor="middle"
+                            className="pointer-events-none fill-violet-700"
+                          >
+                            SIM
+                          </text>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </g>
@@ -379,7 +348,7 @@ export function FloorPlanCanvas({
                       <button
                         type="button"
                         className="text-left text-xs underline"
-                        onClick={() => setSelection({ type: "device", id: device.id })}
+                        onClick={() => select(propertyId, { type: "device", id: device.id })}
                       >
                         {device.label}
                       </button>
@@ -398,6 +367,11 @@ export function FloorPlanCanvas({
                   {selectedDevice.connectivity}
                 </Badge>
               </div>
+              {selectedDevice.source === "SIMULATION" && (
+                <Badge variant="secondary" className="w-fit">
+                  SIMULATED
+                </Badge>
+              )}
               <p className="text-xs text-neutral-500">
                 {selectedDevice.category.replaceAll("_", " ")}
                 {selectedDeviceRoom ? ` · ${selectedDeviceRoom.name}` : ""}
