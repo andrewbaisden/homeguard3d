@@ -9,5 +9,6 @@
  */
 export * from "./events/schema";
 export * from "./devices/reducer";
+export * from "./geometry/plan";
 export * from "./security/stateMachine";
 export * from "./security/mapEvent";

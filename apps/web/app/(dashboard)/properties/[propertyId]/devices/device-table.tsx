@@ -1,7 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { domainEventSchema, isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
+import { usePropertyEventStream } from "@/lib/use-property-event-stream";
+import { isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
 import { useEffect, useState } from "react";
 
 export interface DeviceRow {
@@ -39,8 +40,6 @@ function connectivityVariant(connectivity: string): "outline" | "secondary" | "d
   return "secondary";
 }
 
-type ConnectionState = "connecting" | "open" | "closed";
-
 /**
  * A plain table, not the 2D/3D view — but it already follows the real
  * architecture: the client applies incoming events through the exact
@@ -59,7 +58,6 @@ export function DeviceTable({
   sseBaseUrl: string;
 }) {
   const [devices, setDevices] = useState(initialDevices);
-  const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
 
   // initialDevices is a new array every time the server re-renders this
   // route (e.g. a server action's revalidatePath after adding a device).
@@ -69,27 +67,12 @@ export function DeviceTable({
     setDevices(initialDevices);
   }, [initialDevices]);
 
-  useEffect(() => {
-    const source = new EventSource(`${sseBaseUrl}/realtime/${propertyId}/stream`);
-
-    source.onopen = () => setConnectionState("open");
-    source.onerror = () => setConnectionState("closed");
-
-    source.onmessage = (message) => {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(message.data);
-      } catch {
-        return;
-      }
-
-      const parsed = domainEventSchema.safeParse(raw);
-      if (!parsed.success || !isDeviceStateEvent(parsed.data)) {
-        return;
-      }
-      const event = parsed.data;
+  const { connectionState } = usePropertyEventStream({
+    propertyId,
+    sseBaseUrl,
+    onEvent: (event) => {
+      if (!isDeviceStateEvent(event)) return;
       const patch = reduceDeviceEvent(event);
-
       setDevices((prev) =>
         prev.map((device) =>
           device.id === event.deviceId
@@ -97,10 +80,8 @@ export function DeviceTable({
             : device,
         ),
       );
-    };
-
-    return () => source.close();
-  }, [propertyId, sseBaseUrl]);
+    },
+  });
 
   return (
     <div className="flex flex-col gap-3">

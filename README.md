@@ -30,7 +30,7 @@ architectural choice.
 
 ## Status
 
-This repository has completed Phases 1–6 of the roadmap in
+This repository has completed Phases 1–7 of the roadmap in
 `ARCHITECTURE.md` section V:
 
 - **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
@@ -60,10 +60,17 @@ This repository has completed Phases 1–6 of the roadmap in
   keyboard), a click-to-place device position (a new `Device.positionX/Y`
   column), and the same live SSE + `reduceDeviceEvent` pattern as the
   Devices page for marker state/color.
+- **Phase 7** — the 3D digital twin (`apps/web/app/(dashboard)/properties/[propertyId]/twin-3d`):
+  a route-lazy React Three Fiber scene built from the pure
+  `@homeguard/three-adapter`, with stable domain IDs, floor isolation and
+  dollhouse views, room/opening/device inspection, and cheap live updates
+  to device markers and linked doors. Browsers without WebGL fall back to
+  the live 2D plan. Browser SSE connections now use short-lived,
+  property-scoped tokens minted only after a membership check.
 
-Not yet implemented: 3D rendering, simulation, alerts/automation, and
-historical replay — see the phased roadmap in `ARCHITECTURE.md` section
-V for what's next and in what order.
+Not yet implemented: the shared 2D/3D Zustand synchronization layer,
+simulation, alerts/automation, and historical replay — see the phased
+roadmap in `ARCHITECTURE.md` section V for what's next and in what order.
 
 ## Technology stack
 
@@ -74,7 +81,7 @@ V for what's next and in what order.
 - **Database:** PostgreSQL + Prisma
 - **Auth:** Better Auth (self-hosted, Postgres-backed)
 - **Realtime/jobs:** Server-Sent Events, Redis, BullMQ — hosted on a separate persistent Node service
-- **3D:** React Three Fiber + Drei (added in Phase 7 — not a dependency yet)
+- **3D:** React Three Fiber + Drei, behind a pure structural geometry adapter
 - **Testing:** Vitest, React Testing Library, Playwright
 - **Code quality:** Biome, Husky, lint-staged
 - **CI/CD:** GitHub Actions
@@ -92,6 +99,7 @@ homeguard3d/
     database/             Prisma schema + generated client, shared by both apps
     domain/                Pure domain logic: security state machine, event schemas, providers, alerts
     auth/                  Better Auth config + property-access authorization helper
+    three-adapter/         Pure structural-model to 3D scene-graph adapter
     ui/                    Shared shadcn/ui-adjacent utilities (e.g. `cn`)
     config/                Shared Zod environment schemas
 ```

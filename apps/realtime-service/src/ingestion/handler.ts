@@ -116,10 +116,15 @@ export async function ingestEvent(input: unknown, bus: RealtimeBus): Promise<Ing
 async function applyDeviceEvent(tx: Tx, event: DeviceStateEvent): Promise<TxOutcome> {
   const device = await tx.device.findUnique({
     where: { id: event.deviceId },
-    select: { lastAppliedSequence: true },
+    select: { propertyId: true, lastAppliedSequence: true },
   });
   if (!device) {
     throw new IngestionValidationError(`Device ${event.deviceId} not found`);
+  }
+  if (device.propertyId !== event.propertyId) {
+    throw new IngestionValidationError(
+      `Device ${event.deviceId} does not belong to property ${event.propertyId}`,
+    );
   }
 
   try {
@@ -172,7 +177,7 @@ async function applyDeviceEvent(tx: Tx, event: DeviceStateEvent): Promise<TxOutc
           eventId: `${event.eventId}:sensor-triggered`,
           propertyId: event.propertyId,
           deviceId: event.deviceId,
-          source: "SYSTEM",
+          source: event.source === "SIMULATION" ? "SIMULATION" : "SYSTEM",
           occurredAt: new Date().toISOString(),
           type: "security.sensor_triggered",
           metadata: { isEntryPoint },
@@ -205,6 +210,18 @@ async function applySecurityEvent(
   event: DomainEvent,
   securityEvent: SecurityDomainEvent,
 ): Promise<TxOutcome> {
+  if ("deviceId" in event) {
+    const device = await tx.device.findFirst({
+      where: { id: event.deviceId, propertyId: event.propertyId },
+      select: { id: true },
+    });
+    if (!device) {
+      throw new IngestionValidationError(
+        `Device ${event.deviceId} does not belong to property ${event.propertyId}`,
+      );
+    }
+  }
+
   const securityState = await tx.securityState.findUnique({
     where: { propertyId: event.propertyId },
   });

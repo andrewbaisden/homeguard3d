@@ -2,17 +2,19 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { domainEventSchema, isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { setDevicePosition } from "./actions";
+import { usePropertyEventStream } from "@/lib/use-property-event-stream";
 import {
   type Point,
   type WallOffset,
   boundsOfPolygons,
   fallbackDevicePosition,
+  isDeviceStateEvent,
   polygonCentroid,
+  reduceDeviceEvent,
   wallOffsetSpan,
-} from "./geometry";
+} from "@homeguard/domain";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { setDevicePosition } from "./actions";
 
 export interface DeviceMarker {
   id: string;
@@ -98,10 +100,12 @@ export function FloorPlanCanvas({
   propertyId,
   floors,
   sseBaseUrl,
+  canEdit = false,
 }: {
   propertyId: string;
   floors: FloorData[];
   sseBaseUrl: string;
+  canEdit?: boolean;
 }) {
   const [activeFloorId, setActiveFloorId] = useState(floors[0]?.id ?? "");
   const [devices, setDevices] = useState<DeviceMarker[]>(() =>
@@ -115,26 +119,17 @@ export function FloorPlanCanvas({
     setDevices(floors.flatMap((floor) => floor.rooms.flatMap((room) => room.devices)));
   }, [floors]);
 
-  useEffect(() => {
-    const source = new EventSource(`${sseBaseUrl}/realtime/${propertyId}/stream`);
-    source.onmessage = (message) => {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(message.data);
-      } catch {
-        return;
-      }
-      const parsed = domainEventSchema.safeParse(raw);
-      if (!parsed.success || !isDeviceStateEvent(parsed.data)) return;
-
-      const event = parsed.data;
+  const { connectionState, lastEventAt } = usePropertyEventStream({
+    propertyId,
+    sseBaseUrl,
+    onEvent: (event) => {
+      if (!isDeviceStateEvent(event)) return;
       const patch = reduceDeviceEvent(event);
       setDevices((prev) =>
         prev.map((device) => (device.id === event.deviceId ? { ...device, ...patch } : device)),
       );
-    };
-    return () => source.close();
-  }, [propertyId, sseBaseUrl]);
+    },
+  });
 
   const activeFloor = floors.find((floor) => floor.id === activeFloorId) ?? floors[0];
 
@@ -177,21 +172,33 @@ export function FloorPlanCanvas({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        {floors.map((floor) => (
-          <Button
-            key={floor.id}
-            size="sm"
-            variant={floor.id === activeFloor?.id ? "default" : "outline"}
-            onClick={() => {
-              setActiveFloorId(floor.id);
-              setSelection(null);
-              setPlacingDeviceId(null);
-            }}
-          >
-            {floor.name}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {floors.map((floor) => (
+            <Button
+              key={floor.id}
+              size="sm"
+              variant={floor.id === activeFloor?.id ? "default" : "outline"}
+              onClick={() => {
+                setActiveFloorId(floor.id);
+                setSelection(null);
+                setPlacingDeviceId(null);
+              }}
+            >
+              {floor.name}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-neutral-500" aria-live="polite">
+          {connectionState === "open" && "Live"}
+          {connectionState === "connecting" && "Connecting to live updates…"}
+          {connectionState === "closed" && (
+            <>
+              Live updates disconnected — showing last known state
+              {lastEventAt ? ` as of ${new Date(lastEventAt).toLocaleTimeString()}` : ""}.
+            </>
+          )}
+        </p>
       </div>
 
       {placingDeviceId && (
@@ -399,13 +406,15 @@ export function FloorPlanCanvas({
               {selectedDevice.capabilities.length > 0 && (
                 <p className="text-xs text-neutral-500">{selectedDevice.capabilities.join(", ")}</p>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setPlacingDeviceId(selectedDevice.id)}
-              >
-                {selectedDevice.positionX != null ? "Move on map" : "Place on map"}
-              </Button>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPlacingDeviceId(selectedDevice.id)}
+                >
+                  {selectedDevice.positionX != null ? "Move on map" : "Place on map"}
+                </Button>
+              )}
             </div>
           )}
 

@@ -25,8 +25,8 @@ Implemented:
     `CANCEL_TIMERS` effects (`src/security/timers.ts`) — **in-memory only**,
     lost on restart; a stand-in for durable BullMQ delayed jobs (Phase 11).
 - `GET /realtime/:propertyId/stream` — SSE stream fed by Redis pub/sub
-  (`src/realtime/pubsub.ts`), CORS-scoped to `WEB_APP_ORIGIN`. No
-  per-viewer auth yet — see the `TODO` in `src/index.ts`.
+  (`src/realtime/pubsub.ts`), CORS-scoped to `WEB_APP_ORIGIN` and gated by
+  a short-lived, property-scoped token minted only after `requireAccess`.
 - `GET /healthz`.
 
 Not yet implemented: BullMQ workers, the simulation clock (Phase 9).

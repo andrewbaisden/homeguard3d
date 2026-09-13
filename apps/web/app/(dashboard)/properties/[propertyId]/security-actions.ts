@@ -15,10 +15,10 @@ import { revalidatePath } from "next/cache";
  */
 const SECURITY_MIN_ROLE = "MEMBER" as const;
 
-async function describeBlockedDevices(deviceIds: string[]): Promise<string> {
+async function describeBlockedDevices(propertyId: string, deviceIds: string[]): Promise<string> {
   if (deviceIds.length === 0) return "Arming was blocked.";
   const devices = await prisma.device.findMany({
-    where: { id: { in: deviceIds } },
+    where: { id: { in: deviceIds }, propertyId },
     select: { label: true },
   });
   const labels = devices.map((device) => device.label);
@@ -51,7 +51,7 @@ export async function armSecurity(
   }
 
   if (result.status === "rejected") {
-    throw new Error(await describeBlockedDevices(result.rejectedDeviceIds ?? []));
+    throw new Error(await describeBlockedDevices(propertyId, result.rejectedDeviceIds ?? []));
   }
 
   revalidatePath(`/properties/${propertyId}`);

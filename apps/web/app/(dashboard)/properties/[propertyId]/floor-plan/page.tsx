@@ -16,8 +16,10 @@ export default async function FloorPlanPage({
 }) {
   const { propertyId } = await params;
 
+  let canEdit = false;
   try {
-    await requireAccess(propertyId, "VIEWER");
+    const access = await requireAccess(propertyId, "VIEWER");
+    canEdit = access.role === "ADMIN" || access.role === "OWNER";
   } catch (error) {
     if (error instanceof PropertyAccessError) {
       notFound();
@@ -46,6 +48,7 @@ export default async function FloorPlanPage({
               doors: { select: { id: true, wallOffset: true, isExterior: true } },
               windows: { select: { id: true, wallOffset: true } },
               devices: {
+                orderBy: { id: "asc" },
                 select: {
                   id: true,
                   label: true,
@@ -134,6 +137,7 @@ export default async function FloorPlanPage({
           propertyId={property.id}
           floors={floors}
           sseBaseUrl={REALTIME_SSE_BASE_URL}
+          canEdit={canEdit}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+import { verifyRealtimeToken } from "@homeguard/auth/realtime-token";
 import { loadEnv, realtimeServiceEnvSchema } from "@homeguard/config/env";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -56,13 +57,13 @@ app.post("/internal/ingest", async (c) => {
 // Fly.io are always different origins, so this needs CORS even though
 // both endpoints live on "the same app" conceptually.
 //
-// TODO(Phase 8): this endpoint has no per-viewer authorization yet —
-// there is no browser client wired up until the 2D/3D sync layer lands.
-// Design a short-lived token (minted by an authorized apps/web request)
-// before any real client connects to it.
 app.use("/realtime/*", cors({ origin: env.WEB_APP_ORIGIN }));
 app.get("/realtime/:propertyId/stream", (c) => {
   const propertyId = c.req.param("propertyId");
+  const token = c.req.query("token");
+  if (!verifyRealtimeToken(token, propertyId, env.FLY_SERVICE_SECRET)) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
 
   return streamSSE(c, async (stream) => {
     const unsubscribe = bus.subscribe(propertyId, (payload) => {
