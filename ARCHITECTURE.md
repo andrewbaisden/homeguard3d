@@ -4,7 +4,7 @@ This document describes HomeGuard 3D's system architecture: the digital
 twin domain model, how structural/operational/historical state are kept
 distinct, the event pipeline, realtime transport, 2D/3D rendering and
 synchronization, the device provider abstraction, simulation, security,
-and deployment. For *why* each choice was made over the alternatives,
+and deployment. For _why_ each choice was made over the alternatives,
 see [`DECISIONS.md`](./DECISIONS.md).
 
 **Status:** this describes the target architecture. As of Phase 1, the
@@ -40,11 +40,11 @@ that same fact — none of them independently manages door state.
 Three distinct state buckets — do not conflate them (see
 [`DECISIONS.md`](./DECISIONS.md) ADR-002):
 
-| Bucket | What | Examples |
-|---|---|---|
-| **Structural** | Relatively static | Property, Floor, Room, Wall (implicit), Door, Window, device placement |
-| **Operational** | Current state | Door open/closed, lock state, motion active/inactive, camera online, security mode |
-| **Event History** | What changed | door.opened, motion.started, security.armed, alarm.triggered |
+| Bucket            | What              | Examples                                                                           |
+| ----------------- | ----------------- | ---------------------------------------------------------------------------------- |
+| **Structural**    | Relatively static | Property, Floor, Room, Wall (implicit), Door, Window, device placement             |
+| **Operational**   | Current state     | Door open/closed, lock state, motion active/inactive, camera online, security mode |
+| **Event History** | What changed      | door.opened, motion.started, security.armed, alarm.triggered                       |
 
 Core entities: `Property` (tenant root) → `Floor` → `Room` (polygon
 geometry) → `Door`/`Window` (wall-offset geometry, optionally linked to
@@ -107,11 +107,11 @@ Key modeling decisions (rationale in `DECISIONS.md`):
 
 ## C. Structural vs Operational vs Historical State
 
-| Bucket | Models/fields | Mutation pattern |
-|---|---|---|
-| Structural | `Property`, `Floor`, `Room`, `Door`, `Window`, `Device` identity fields, `SecurityZone` + joins | Rare, via authenticated admin server actions |
-| Operational | `Device` status columns, `SecurityState`, live `PresenceEstimate` (Redis) | **Authoritative projection** — written synchronously by a pure reducer inside the same transaction as the triggering `Event` insert |
-| Historical | `Event` (immutable, append-only), `Snapshot`, `Alert` lifecycle timestamps | Never mutated in place except `Alert.status` (itself also emitted as an `Event`) |
+| Bucket      | Models/fields                                                                                   | Mutation pattern                                                                                                                    |
+| ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Structural  | `Property`, `Floor`, `Room`, `Door`, `Window`, `Device` identity fields, `SecurityZone` + joins | Rare, via authenticated admin server actions                                                                                        |
+| Operational | `Device` status columns, `SecurityState`, live `PresenceEstimate` (Redis)                       | **Authoritative projection** — written synchronously by a pure reducer inside the same transaction as the triggering `Event` insert |
+| Historical  | `Event` (immutable, append-only), `Snapshot`, `Alert` lifecycle timestamps                      | Never mutated in place except `Alert.status` (itself also emitted as an `Event`)                                                    |
 
 Operational state is "the event log folded forward," but the fold
 happens once at write time (`reduceEvent(currentRow, event) -> patch`),
@@ -136,7 +136,7 @@ underneath for audit and replay.
 Provider-neutral device categories: `CAMERA`, `LOCK`, `CONTACT_SENSOR`,
 `MOTION_SENSOR`, `ENV_SENSOR`, `SIREN`, `HUB`. Capabilities (`LOCK`,
 `CONTACT`, `MOTION`, `VIDEO`, `AUDIO`, `BATTERY`, `TEMPERATURE`,
-`HUMIDITY`, `SMOKE`) describe what a device instance *can* do,
+`HUMIDITY`, `SMOKE`) describe what a device instance _can_ do,
 decoupled from its current state.
 
 **Decision: typed nullable columns on `Device`**, not per-category
@@ -210,7 +210,7 @@ persist the result.
   disabled.
 
 This mapping is **data**, editable per property without a deploy. The
-*interpretation* of a hot-zone trigger stays in the pure state-machine
+_interpretation_ of a hot-zone trigger stays in the pure state-machine
 module (E), which takes a precomputed `ZoneSnapshot` as a plain input
 rather than querying zones itself — keeping the state machine free of
 I/O and fully unit-testable.
@@ -285,22 +285,22 @@ the very next dashboard query or 2D/3D re-render — introducing queue
 latency between "device reported" and "dashboard shows it" is
 unacceptable for the platform's core value proposition. BullMQ is
 reserved for genuinely async side effects that don't block correctness:
-notification delivery, automation *action* execution, the connectivity
+notification delivery, automation _action_ execution, the connectivity
 sweep, snapshot generation, and simulation tick scheduling. Trigger
-*evaluation* for alerts/automations still runs synchronously in the same
+_evaluation_ for alerts/automations still runs synchronously in the same
 reducer pass, since conditions need current state.
 
 ## I. PostgreSQL vs Redis Responsibilities
 
-| Concern | Store | Why |
-|---|---|---|
-| Structural model, operational state, event history, alerts, automation rules, simulation scenarios/runs, snapshots | **Postgres** | Durable source of truth |
-| Live occupancy/presence estimate | **Redis** (TTL-decayed) | Ephemeral, high-churn; Postgres gets periodic rollups only |
-| Pub/sub fan-out of post-commit state | **Redis** | Not durable by design — clients reconcile via a snapshot fetch on reconnect |
-| BullMQ job/queue state | **Redis** | Native BullMQ storage; jobs are retryable side effects, not source of truth |
-| Realtime connection/session registry | **Redis** | Routes pub/sub messages to the right SSE streams; ephemeral |
-| Simulation clock runtime tick state | **Redis**, checkpointed to `SimulationRun.simClockMs` in Postgres | High-frequency; Postgres holds the resumable checkpoint |
-| Rate limiting / automation debounce | **Redis** | Ephemeral, TTL-based |
+| Concern                                                                                                            | Store                                                             | Why                                                                         |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Structural model, operational state, event history, alerts, automation rules, simulation scenarios/runs, snapshots | **Postgres**                                                      | Durable source of truth                                                     |
+| Live occupancy/presence estimate                                                                                   | **Redis** (TTL-decayed)                                           | Ephemeral, high-churn; Postgres gets periodic rollups only                  |
+| Pub/sub fan-out of post-commit state                                                                               | **Redis**                                                         | Not durable by design — clients reconcile via a snapshot fetch on reconnect |
+| BullMQ job/queue state                                                                                             | **Redis**                                                         | Native BullMQ storage; jobs are retryable side effects, not source of truth |
+| Realtime connection/session registry                                                                               | **Redis**                                                         | Routes pub/sub messages to the right SSE streams; ephemeral                 |
+| Simulation clock runtime tick state                                                                                | **Redis**, checkpointed to `SimulationRun.simClockMs` in Postgres | High-frequency; Postgres holds the resumable checkpoint                     |
+| Rate limiting / automation debounce                                                                                | **Redis**                                                         | Ephemeral, TTL-based                                                        |
 
 **Hard rule:** no durable security-relevant fact may live only in
 Redis. Anything Redis holds must either be reconstructible from
@@ -431,7 +431,7 @@ scene `userData`).
 
 ```ts
 interface SmartHomeProvider {
-  readonly providerId: string;                 // "SIMULATION" | "HOME_ASSISTANT" | ...
+  readonly providerId: string; // "SIMULATION" | "HOME_ASSISTANT" | ...
   connect(propertyId: string): Promise<void>;
   disconnect(propertyId: string): Promise<void>;
   onEvent(handler: (event: DomainEventInput) => Promise<void>): void;
@@ -518,7 +518,7 @@ without Redis/BullMQ in the loop.
 
 ## Q. Historical Replay Strategy
 
-*(Design now; built in a later phase — see section V.)*
+_(Design now; built in a later phase — see section V.)_
 
 ```
 Historical Events
@@ -552,7 +552,11 @@ a single OAuth provider can be added later without changing this shape.
 Every property-scoped server action starts with:
 
 ```ts
-const { userId, role } = await requirePropertyAccess(callerId, propertyId, minRole);
+const { userId, role } = await requirePropertyAccess(
+  callerId,
+  propertyId,
+  minRole,
+);
 ```
 
 — one shared helper (`packages/auth`) backed by `Membership`, never an
@@ -698,7 +702,7 @@ First file: `packages/domain/src/providers/HomeAssistantProvider.stub.ts`.
    ingestion endpoint ever runs the reducer; Vercel always calls into
    it (section J).
 2. **SSE connection scaling** on a single Fly.io machine — acceptable
-   at portfolio scale; documented as a known boundary rather than
+   at scale; documented as a known boundary rather than
    solved prematurely (horizontal scaling via machine count + Redis
    pub/sub fan-out if ever needed).
 3. **`Event.type` string drift** — the Zod discriminated union in

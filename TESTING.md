@@ -7,12 +7,15 @@ machine has real invalid-transition risk. This document describes what
 is tested, at what layer, and why — and how 3D functionality is tested
 *without* attempting to test Three.js itself.
 
-**Status:** this describes the target testing strategy. As of Phase 3,
-`packages/domain` has real Vitest suites for the event schema
-(`src/events/__tests__/schema.test.ts`) and the device-state reducer
-(`src/devices/__tests__/reducer.test.ts`); the security state machine's
-suite lands in Phase 5. The realtime service's ingestion pipeline
-(idempotency, ordering, auth) is verified manually against a live
+**Status:** this describes the target testing strategy. As of Phase 5,
+`packages/domain` has real Vitest suites (99 tests) for the event
+schema (`src/events/__tests__/schema.test.ts`), the device-state
+reducer (`src/devices/__tests__/reducer.test.ts`), the security state
+machine (`src/security/__tests__/stateMachine.test.ts`, table-driven
+over every state/event combination), and the event-to-state-machine
+mapper (`src/security/__tests__/mapEvent.test.ts`). The realtime
+service's ingestion pipeline (idempotency, ordering, auth, the arm
+guard, timer-driven escalation) is verified manually against a live
 Postgres/Redis for now (see `apps/realtime-service/README.md`) — a
 proper integration-test harness for it is Phase 14 scope.
 

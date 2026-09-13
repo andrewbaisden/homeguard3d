@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DomainEvent } from "../../events/schema";
-import { reduceDeviceEvent } from "../reducer";
+import { type DeviceStateEvent, reduceDeviceEvent } from "../reducer";
 
-function event(type: DomainEvent["type"]): DomainEvent {
+function event(type: DeviceStateEvent["type"]): DeviceStateEvent {
   return {
     eventId: "evt_1",
     propertyId: "prop_1",
@@ -11,7 +10,7 @@ function event(type: DomainEvent["type"]): DomainEvent {
     occurredAt: "2026-01-01T00:00:00.000Z",
     type,
     metadata: {},
-  } as DomainEvent;
+  } as DeviceStateEvent;
 }
 
 describe("reduceDeviceEvent", () => {

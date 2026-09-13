@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WALL_SEGMENTS } from "@/lib/constants";
 import { requireAccess } from "@/server/authz";
@@ -10,6 +9,11 @@ import { NewDoorForm } from "./new-door-form";
 import { NewFloorForm } from "./new-floor-form";
 import { NewRoomForm } from "./new-room-form";
 import { NewWindowForm } from "./new-window-form";
+import { SecurityControl } from "./security-control";
+
+// Opened directly by the browser against the realtime service — see
+// ARCHITECTURE.md section J. Falls back to the local dev default.
+const REALTIME_SSE_BASE_URL = process.env.NEXT_PUBLIC_REALTIME_SSE_URL ?? "http://localhost:8080";
 
 type WallOffset = { wallSegmentIndex: number; offsetMeters: number; widthMeters: number };
 
@@ -71,16 +75,24 @@ export default async function PropertyPage({
           <h1 className="text-xl font-semibold">{property.name}</h1>
           <p className="text-sm text-neutral-500">{property.timezone}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/properties/${property.id}/devices`}
-            className="text-sm text-neutral-500 hover:underline"
-          >
+        <div className="flex items-center gap-3 text-sm text-neutral-500">
+          <Link href={`/properties/${property.id}/devices`} className="hover:underline">
             Devices
           </Link>
-          <Badge variant="outline">{property.securityState?.mode ?? "DISARMED"}</Badge>
+          <Link href={`/properties/${property.id}/zones`} className="hover:underline">
+            Zones
+          </Link>
         </div>
       </div>
+
+      <SecurityControl
+        propertyId={property.id}
+        initial={{
+          machineState: property.securityState?.machineState ?? "IDLE_DISARMED",
+          mode: property.securityState?.mode ?? "DISARMED",
+        }}
+        sseBaseUrl={REALTIME_SSE_BASE_URL}
+      />
 
       <Card>
         <CardHeader>

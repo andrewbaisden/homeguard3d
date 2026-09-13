@@ -1,8 +1,8 @@
 # HomeGuard 3D
 
-**A smart-home digital twin and security monitoring portfolio platform.**
+**A smart-home digital twin and security monitoring platform.**
 
-> HomeGuard 3D is a portfolio/demo project. It is **not** a certified alarm
+> HomeGuard 3D is a demo project. It is **not** a certified alarm
 > or professional monitoring product. It does not perform emergency
 > dispatch, facial/biometric recognition, or automatic determination of
 > criminal intent, and it does not guarantee property security. See
@@ -30,7 +30,7 @@ architectural choice.
 
 ## Status
 
-This repository has completed Phases 1–4 of the roadmap in
+This repository has completed Phases 1–5 of the roadmap in
 `ARCHITECTURE.md` section V:
 
 - **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
@@ -47,10 +47,17 @@ This repository has completed Phases 1–4 of the roadmap in
   service uses at ingestion — proving the "one reducer, client and
   server" principle from `ARCHITECTURE.md` section M ahead of the full
   Phase 8 sync layer.
+- **Phase 5** — the security state machine (`packages/domain/src/security/stateMachine.ts`,
+  99 domain tests) and zones: arm/disarm/cancel commands flow through the
+  same ingestion pipeline as device events, an armed hot-zone door/motion
+  trigger escalates through `ENTRY_DELAY`/`ALERT` to `ALARM` on its own
+  timers, and the arm guard rejects (with an override) when hot-zone
+  doors/windows are open. A full arm → intrusion → alarm → disarm cycle
+  is verified live end-to-end (`apps/web/app/(dashboard)/properties/[propertyId]/{security-control,zones}*`).
 
-Not yet implemented: 2D/3D rendering, the security state machine,
-simulation, alerts/automation, and historical replay — see the phased
-roadmap in `ARCHITECTURE.md` section V for what's next and in what order.
+Not yet implemented: 2D/3D rendering, simulation, alerts/automation, and
+historical replay — see the phased roadmap in `ARCHITECTURE.md` section
+V for what's next and in what order.
 
 ## Technology stack
 
@@ -112,16 +119,16 @@ pnpm db:studio     # Prisma Studio
 
 See [`.env.example`](./.env.example) for the full list. Summary:
 
-| Variable | Used by | Purpose |
-|---|---|---|
-| `DATABASE_URL` | both | Postgres connection string |
-| `REDIS_URL` | both | Redis connection string |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | web | Better Auth session signing + base URL |
-| `FLY_INGESTION_URL`, `FLY_SERVICE_SECRET` | web | Service-to-service call into the realtime service's ingestion endpoint |
-| `NEXT_PUBLIC_REALTIME_SSE_URL` | web (client) | Where the browser opens its `EventSource` connection |
-| `SENTRY_DSN` | both | Error reporting |
-| `POSTHOG_KEY` | web | Product analytics (high-level events only — see Privacy below) |
-| `PORT` | realtime-service | HTTP port for the service |
+| Variable                                  | Used by          | Purpose                                                                |
+| ----------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`                            | both             | Postgres connection string                                             |
+| `REDIS_URL`                               | both             | Redis connection string                                                |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`   | web              | Better Auth session signing + base URL                                 |
+| `FLY_INGESTION_URL`, `FLY_SERVICE_SECRET` | web              | Service-to-service call into the realtime service's ingestion endpoint |
+| `NEXT_PUBLIC_REALTIME_SSE_URL`            | web (client)     | Where the browser opens its `EventSource` connection                   |
+| `SENTRY_DSN`                              | both             | Error reporting                                                        |
+| `POSTHOG_KEY`                             | web              | Product analytics (high-level events only — see Privacy below)         |
+| `PORT`                                    | realtime-service | HTTP port for the service                                              |
 
 Environment variables are validated with Zod at startup (`packages/config/src/env.ts`) rather than read ad hoc via `process.env` throughout the codebase.
 

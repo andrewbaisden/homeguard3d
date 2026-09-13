@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { domainEventSchema, reduceDeviceEvent } from "@homeguard/domain";
+import { domainEventSchema, isDeviceStateEvent, reduceDeviceEvent } from "@homeguard/domain";
 import { useEffect, useState } from "react";
 
 export interface DeviceRow {
@@ -84,7 +84,7 @@ export function DeviceTable({
       }
 
       const parsed = domainEventSchema.safeParse(raw);
-      if (!parsed.success) {
+      if (!parsed.success || !isDeviceStateEvent(parsed.data)) {
         return;
       }
       const event = parsed.data;
