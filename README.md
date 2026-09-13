@@ -78,8 +78,10 @@ This repository has completed Phases 1–7 of the roadmap in
   through normalized SIMULATION-sourced events.
 - **Phase 11** — alerts/automation: pure evaluators, BullMQ action
   workers, alert lifecycle UI, and a structured rule builder.
+- **Phase 12** — Redis-backed occupancy estimate (UNKNOWN/VACANT/
+  OCCUPIED + confidence) with live SSE updates and dashboard indicator.
 
-Not yet implemented: occupancy, historical replay —
+Not yet implemented: historical replay —
 see the phased roadmap in `ARCHITECTURE.md` section V for what's next
 and in what order.
 

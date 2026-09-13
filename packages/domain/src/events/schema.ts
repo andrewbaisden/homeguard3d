@@ -8,10 +8,9 @@ import { z } from "zod";
  * source, occurredAt, sequence?, metadata — see ARCHITECTURE.md
  * section G.
  *
- * Covers Phase 3/4 device-state, Phase 5 security, and Phase 11 alert
- * lifecycle events. Occupancy (Phase 12) types are added when that
- * phase implements the reducer logic that consumes them — see
- * AGENTS.md ("adding a new event type means adding a case here, not a
+ * Covers Phase 3/4 device-state, Phase 5 security, Phase 11 alert
+ * lifecycle, and Phase 12 occupancy broadcast events. See AGENTS.md
+ * ("adding a new event type means adding a case here, not a
  * migration").
  */
 
@@ -86,6 +85,15 @@ export const domainEventSchema = z.discriminatedUnion("type", [
   }),
   propertyEvent("alert.acknowledged", { alertId: z.string().min(1) }),
   propertyEvent("alert.resolved", { alertId: z.string().min(1) }),
+
+  // Occupancy (Phase 12) — live estimate broadcast for SSE clients.
+  propertyEvent("occupancy.updated", {
+    status: z.enum(["UNKNOWN", "VACANT", "OCCUPIED"]),
+    confidence: z.number().min(0).max(1),
+    roomId: z.string().min(1).optional(),
+    evidence: z.array(z.string()),
+    simulated: z.boolean(),
+  }),
 ]);
 
 export type DomainEvent = z.infer<typeof domainEventSchema>;

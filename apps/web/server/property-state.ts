@@ -1,5 +1,6 @@
 import "server-only";
 
+import { fetchOccupancySnapshot } from "@/lib/occupancy";
 import { prisma } from "@homeguard/database";
 import type { StructuralModel } from "@homeguard/domain";
 import type { OperationalSnapshot } from "@homeguard/state";
@@ -23,7 +24,7 @@ const deviceOperationalSelect = {
 } as const;
 
 export async function loadOperationalSnapshot(propertyId: string): Promise<OperationalSnapshot> {
-  const [devices, security, latestSecurityEvent] = await Promise.all([
+  const [devices, security, latestSecurityEvent, occupancy] = await Promise.all([
     prisma.device.findMany({ where: { propertyId }, select: deviceOperationalSelect }),
     prisma.securityState.findUnique({ where: { propertyId } }),
     prisma.event.findFirst({
@@ -31,6 +32,7 @@ export async function loadOperationalSnapshot(propertyId: string): Promise<Opera
       orderBy: { occurredAt: "desc" },
       select: { source: true },
     }),
+    fetchOccupancySnapshot(propertyId),
   ]);
 
   return {
@@ -53,6 +55,7 @@ export async function loadOperationalSnapshot(propertyId: string): Promise<Opera
       changedAt: (security?.changedAt ?? new Date(0)).toISOString(),
       source: latestSecurityEvent?.source ?? null,
     },
+    occupancy,
   };
 }
 

@@ -5,8 +5,14 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
-import { IngestionValidationError, ingestEvent, setAutomationQueue } from "./ingestion/handler";
+import {
+  IngestionValidationError,
+  ingestEvent,
+  setAutomationQueue,
+  setOccupancyStore,
+} from "./ingestion/handler";
 import { createAutomationQueue, startAutomationWorker } from "./jobs/automation-worker";
+import { OccupancyStore } from "./occupancy/store";
 import { createRedisRealtimeBus } from "./realtime/pubsub";
 import { SimulationControlError, SimulationManager } from "./simulation/manager";
 
@@ -20,6 +26,8 @@ const env = loadEnv(realtimeServiceEnvSchema);
 const bus = createRedisRealtimeBus(env.REDIS_URL);
 const automationQueue = createAutomationQueue(env.REDIS_URL);
 setAutomationQueue(automationQueue);
+const occupancy = new OccupancyStore(env.REDIS_URL);
+setOccupancyStore(occupancy);
 const automationWorker = startAutomationWorker(env.REDIS_URL, bus);
 automationWorker.on("failed", (job, error) => {
   console.error("[automation] job failed", job?.id, error);
@@ -64,6 +72,13 @@ app.get("/internal/simulation/:propertyId", async (c) => {
     return c.json({ error: "unauthorized" }, 401);
   }
   return c.json(await simulations.status(c.req.param("propertyId")));
+});
+
+app.get("/internal/occupancy/:propertyId", async (c) => {
+  if (c.req.header("x-service-secret") !== env.FLY_SERVICE_SECRET) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+  return c.json(await occupancy.get(c.req.param("propertyId")));
 });
 
 app.post("/internal/simulation/:propertyId/control", async (c) => {

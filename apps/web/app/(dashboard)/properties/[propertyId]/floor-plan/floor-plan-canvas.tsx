@@ -43,6 +43,22 @@ function markerClassName(device: DeviceMarker): string {
   return "fill-neutral-400 stroke-white";
 }
 
+function RoomOccupancyLine({ propertyId, roomId }: { propertyId: string; roomId: string }) {
+  const roomOccupancy = useRealtimeStore(
+    (state) => state.properties[propertyId]?.occupancy.rooms[roomId],
+  );
+  if (!roomOccupancy) {
+    return <p className="text-xs text-neutral-500">Occupancy: unknown</p>;
+  }
+  return (
+    <p className="text-xs text-neutral-500">
+      Occupancy: {roomOccupancy.status.toLowerCase()} ({(roomOccupancy.confidence * 100).toFixed(0)}
+      %)
+      {roomOccupancy.simulated ? " · SIMULATED" : ""}
+    </p>
+  );
+}
+
 function connectivityVariant(connectivity: string): "outline" | "secondary" | "destructive" {
   if (connectivity === "ONLINE") return "outline";
   if (connectivity === "OFFLINE") return "destructive";
@@ -341,6 +357,7 @@ export function FloorPlanCanvas({
                 {selectedRoom.doors.length} door(s) · {selectedRoom.windows.length} window(s) ·{" "}
                 {selectedRoom.devices.length} device(s)
               </p>
+              <RoomOccupancyLine propertyId={propertyId} roomId={selectedRoom.id} />
               {selectedRoom.devices.length > 0 && (
                 <ul className="flex flex-col gap-1">
                   {selectedRoom.devices.map((device) => (

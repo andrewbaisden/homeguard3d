@@ -9,6 +9,7 @@ import { NewDoorForm } from "./new-door-form";
 import { NewFloorForm } from "./new-floor-form";
 import { NewRoomForm } from "./new-room-form";
 import { NewWindowForm } from "./new-window-form";
+import { OccupancyIndicator } from "./occupancy-indicator";
 import { SecurityControl } from "./security-control";
 
 type WallOffset = { wallSegmentIndex: number; offsetMeters: number; widthMeters: number };
@@ -103,6 +104,8 @@ export default async function PropertyPage({
           mode: property.securityState?.mode ?? "DISARMED",
         }}
       />
+
+      <OccupancyIndicator propertyId={property.id} />
 
       <Card>
         <CardHeader>

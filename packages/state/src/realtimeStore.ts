@@ -1,6 +1,8 @@
 import {
   type DomainEvent,
   type EventSource,
+  type OccupancyEstimate,
+  type OccupancyStatus,
   type SecurityStateSnapshot,
   isDeviceStateEvent,
   mapToSecurityDomainEvent,
@@ -28,6 +30,15 @@ export interface SecurityOperationalState extends SecurityStateSnapshot {
   source: EventSource | null;
 }
 
+export interface OccupancyOperationalState {
+  status: OccupancyStatus;
+  confidence: number;
+  evidence: string[];
+  updatedAtMs: number;
+  simulated: boolean;
+  rooms: Record<string, OccupancyEstimate>;
+}
+
 export type RealtimeConnectionState = "connecting" | "open" | "closed";
 export type DomainSelection = {
   id: string;
@@ -37,6 +48,7 @@ export type DomainSelection = {
 export interface PropertyRealtimeState {
   devicesById: Record<string, DeviceOperationalState>;
   security: SecurityOperationalState;
+  occupancy: OccupancyOperationalState;
   selected: DomainSelection;
   connectionState: RealtimeConnectionState;
   lastEventAt: string | null;
@@ -46,6 +58,7 @@ export interface PropertyRealtimeState {
 export interface OperationalSnapshot {
   devices: DeviceOperationalState[];
   security: SecurityOperationalState;
+  occupancy: OccupancyOperationalState;
 }
 
 const EMPTY_SECURITY: SecurityOperationalState = {
@@ -53,6 +66,15 @@ const EMPTY_SECURITY: SecurityOperationalState = {
   mode: "DISARMED",
   changedAt: new Date(0).toISOString(),
   source: null,
+};
+
+export const EMPTY_OCCUPANCY: OccupancyOperationalState = {
+  status: "UNKNOWN",
+  confidence: 0,
+  evidence: [],
+  updatedAtMs: 0,
+  simulated: false,
+  rooms: {},
 };
 
 function newerOrEqual(incoming: string | null, existing: string | null): boolean {
@@ -76,10 +98,15 @@ export function mergeOperationalSnapshot(
     !current || newerOrEqual(snapshot.security.changedAt, current.security.changedAt)
       ? snapshot.security
       : current.security;
+  const occupancy =
+    !current || snapshot.occupancy.updatedAtMs >= current.occupancy.updatedAtMs
+      ? snapshot.occupancy
+      : current.occupancy;
 
   return {
     devicesById,
     security,
+    occupancy,
     selected: current?.selected ?? null,
     connectionState: current?.connectionState ?? "connecting",
     lastEventAt: current?.lastEventAt ?? null,
@@ -94,6 +121,30 @@ export function projectRealtimeEvent(
   if (current.seenEventIds.includes(event.eventId)) return current;
   const seenEventIds = [...current.seenEventIds.slice(-255), event.eventId];
   const base = { ...current, seenEventIds, lastEventAt: event.occurredAt };
+
+  if (event.type === "occupancy.updated") {
+    const rooms = { ...current.occupancy.rooms };
+    if (event.metadata.roomId) {
+      rooms[event.metadata.roomId] = {
+        status: event.metadata.status,
+        confidence: event.metadata.confidence,
+        evidence: event.metadata.evidence,
+        updatedAtMs: Date.parse(event.occurredAt),
+        simulated: event.metadata.simulated,
+      };
+    }
+    return {
+      ...base,
+      occupancy: {
+        status: event.metadata.status,
+        confidence: event.metadata.confidence,
+        evidence: event.metadata.evidence,
+        updatedAtMs: Date.parse(event.occurredAt),
+        simulated: event.metadata.simulated,
+        rooms,
+      },
+    };
+  }
 
   if (isDeviceStateEvent(event)) {
     const device = current.devicesById[event.deviceId];
@@ -172,5 +223,5 @@ export const useRealtimeStore = create<RealtimeStore>((set) => ({
 }));
 
 export function emptyOperationalSnapshot(): OperationalSnapshot {
-  return { devices: [], security: EMPTY_SECURITY };
+  return { devices: [], security: EMPTY_SECURITY, occupancy: EMPTY_OCCUPANCY };
 }

@@ -20,3 +20,4 @@ export * from "./simulation/scenario";
 export * from "./alerts/evaluate";
 export * from "./automation/schema";
 export * from "./automation/evaluate";
+export * from "./occupancy/estimate";

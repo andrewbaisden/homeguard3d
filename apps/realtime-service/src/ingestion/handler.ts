@@ -18,6 +18,7 @@ import {
 } from "@homeguard/domain";
 import type { Queue } from "bullmq";
 import { enqueueAutomationJobs } from "../jobs/automation-worker";
+import type { OccupancyStore } from "../occupancy/store";
 import type { RealtimeBus } from "../realtime/pubsub";
 import { type ReIngestSyntheticEvent, scheduleSecurityEffects } from "../security/timers";
 import {
@@ -56,9 +57,14 @@ interface TxOutcome {
 type Tx = Prisma.TransactionClient;
 
 let automationQueue: Queue<AutomationJobDescriptor> | undefined;
+let occupancyStore: OccupancyStore | undefined;
 
 export function setAutomationQueue(queue: Queue<AutomationJobDescriptor> | undefined): void {
   automationQueue = queue;
+}
+
+export function setOccupancyStore(store: OccupancyStore | undefined): void {
+  occupancyStore = store;
 }
 
 function isUniqueConstraintViolation(error: unknown): boolean {
@@ -226,6 +232,12 @@ export async function ingestEvent(input: unknown, bus: RealtimeBus): Promise<Ing
     });
   }
 
+  if (outcome.status === "applied" && occupancyStore && isDeviceStateEvent(event)) {
+    await publishOccupancyUpdate(event, bus).catch((error) => {
+      console.error("[occupancy] failed to update estimate", error);
+    });
+  }
+
   return {
     status: outcome.status,
     eventId: event.eventId,
@@ -233,6 +245,49 @@ export async function ingestEvent(input: unknown, bus: RealtimeBus): Promise<Ing
     ...(outcome.rejectedReason ? { rejectedReason: outcome.rejectedReason } : {}),
     ...(outcome.rejectedDeviceIds ? { rejectedDeviceIds: outcome.rejectedDeviceIds } : {}),
   };
+}
+
+async function publishOccupancyUpdate(event: DeviceStateEvent, bus: RealtimeBus): Promise<void> {
+  if (!occupancyStore) return;
+  const kind =
+    event.type === "motion.started"
+      ? "motion_active"
+      : event.type === "motion.cleared"
+        ? "motion_cleared"
+        : event.type === "door.opened"
+          ? "door_opened"
+          : event.type === "door.closed"
+            ? "door_closed"
+            : null;
+  if (!kind) return;
+
+  const device = await prisma.device.findUnique({
+    where: { id: event.deviceId },
+    select: { roomId: true },
+  });
+  const view = await occupancyStore.applyDeviceEvidence(event.propertyId, device?.roomId, {
+    kind,
+    atMs: Date.parse(event.occurredAt),
+    source: event.source,
+    deviceId: event.deviceId,
+  });
+  if (!view) return;
+
+  const occupancyEvent: DomainEvent = {
+    eventId: `${event.eventId}:occupancy`,
+    propertyId: event.propertyId,
+    source: event.source === "SIMULATION" ? "SIMULATION" : "SYSTEM",
+    occurredAt: new Date().toISOString(),
+    type: "occupancy.updated",
+    metadata: {
+      status: view.property.status,
+      confidence: view.property.confidence,
+      evidence: view.property.evidence,
+      simulated: view.property.simulated,
+      ...(device?.roomId ? { roomId: device.roomId } : {}),
+    },
+  };
+  await bus.publish(event.propertyId, occupancyEvent);
 }
 
 async function applyAlertLifecycleEvent(tx: Tx, event: DomainEvent): Promise<TxOutcome> {

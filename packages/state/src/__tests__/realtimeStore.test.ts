@@ -28,6 +28,14 @@ const initial: OperationalSnapshot = {
     changedAt: "2026-01-01T00:00:00.000Z",
     source: "USER",
   },
+  occupancy: {
+    status: "UNKNOWN",
+    confidence: 0,
+    evidence: [],
+    updatedAtMs: 0,
+    simulated: false,
+    rooms: {},
+  },
 };
 
 describe("realtime projection", () => {
