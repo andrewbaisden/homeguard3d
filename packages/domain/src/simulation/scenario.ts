@@ -29,9 +29,47 @@ export const simulationScriptSchema = z.object({
   steps: z.array(simulationStepSchema).min(1),
 });
 
+export const simulationControlSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("start"),
+    scenarioKey: z.string().min(1),
+    speedFactor: z.number().min(0.25).max(8).default(1),
+  }),
+  z.object({ action: z.literal("pause") }),
+  z.object({ action: z.literal("resume") }),
+  z.object({ action: z.literal("reset") }),
+  z.object({ action: z.literal("speed"), speedFactor: z.number().min(0.25).max(8) }),
+]);
+
+export const simulationStatusSchema = z.object({
+  scenarios: z.array(
+    z.object({
+      key: z.string().min(1),
+      name: z.string().min(1),
+      description: z.string().min(1),
+      durationMs: z.number().nonnegative(),
+      available: z.boolean(),
+      missingCategories: z.array(z.string()),
+    }),
+  ),
+  run: z
+    .object({
+      id: z.string().min(1),
+      scenarioKey: z.string().min(1),
+      scenarioName: z.string().min(1),
+      status: z.enum(["IDLE", "RUNNING", "PAUSED", "COMPLETED"]),
+      speedFactor: z.number().positive(),
+      simClockMs: z.number().nonnegative(),
+      durationMs: z.number().nonnegative(),
+    })
+    .nullable(),
+});
+
 export type SimulationTarget = z.infer<typeof simulationTargetSchema>;
 export type SimulationStep = z.infer<typeof simulationStepSchema>;
 export type SimulationScript = z.infer<typeof simulationScriptSchema>;
+export type SimulationControl = z.infer<typeof simulationControlSchema>;
+export type SimulationStatus = z.infer<typeof simulationStatusSchema>;
 
 export interface ScenarioDefinition {
   key: string;

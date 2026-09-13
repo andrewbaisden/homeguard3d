@@ -5,6 +5,7 @@ import {
   type ScenarioDevice,
   type SimulationClockState,
   SimulationProvider,
+  type SimulationStatus,
   advanceSimulationClock,
   dueStepIndexes,
   missingScenarioCategories,
@@ -32,26 +33,6 @@ interface Runtime {
   lastCheckpointWallMs: number;
   timer: NodeJS.Timeout | undefined;
   busy: boolean;
-}
-
-export interface SimulationStatusView {
-  scenarios: Array<{
-    key: string;
-    name: string;
-    description: string;
-    durationMs: number;
-    available: boolean;
-    missingCategories: string[];
-  }>;
-  run: null | {
-    id: string;
-    scenarioKey: string;
-    scenarioName: string;
-    status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
-    speedFactor: number;
-    simClockMs: number;
-    durationMs: number;
-  };
 }
 
 function endTime(definition: ScenarioDefinition): number {
@@ -96,7 +77,7 @@ export class SimulationManager {
     }
   }
 
-  async status(propertyId: string): Promise<SimulationStatusView> {
+  async status(propertyId: string): Promise<SimulationStatus> {
     await this.#ensureScenarios();
     const devices = await this.#devices(propertyId);
     const run = await prisma.simulationRun.findFirst({

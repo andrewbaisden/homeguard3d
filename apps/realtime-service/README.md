@@ -5,7 +5,8 @@ Persistent Node process deployed to Fly.io. Owns the realtime transport
 clock — see `ARCHITECTURE.md` section U (Deployment Architecture) and
 section J (Realtime Transport Decision) at the repo root.
 
-**Status: Phase 5 — ingestion + SSE + the security state machine.**
+**Status: Phase 9/10 — ingestion, SSE, security state machine, and
+simulation clock with story scenarios + authenticated web controls.**
 Implemented:
 
 - `POST /internal/ingest` — Zod-validates a domain event and routes it

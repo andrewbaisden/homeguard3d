@@ -1,10 +1,10 @@
 import { verifyRealtimeToken } from "@homeguard/auth/realtime-token";
 import { loadEnv, realtimeServiceEnvSchema } from "@homeguard/config/env";
+import { simulationControlSchema } from "@homeguard/domain";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
-import { z } from "zod";
 import { IngestionValidationError, ingestEvent } from "./ingestion/handler";
 import { createRedisRealtimeBus } from "./realtime/pubsub";
 import { SimulationControlError, SimulationManager } from "./simulation/manager";
@@ -57,18 +57,6 @@ app.post("/internal/ingest", async (c) => {
     return c.json({ error: "internal_error" }, 500);
   }
 });
-
-const simulationControlSchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("start"),
-    scenarioKey: z.string().min(1),
-    speedFactor: z.number().min(0.25).max(8).default(1),
-  }),
-  z.object({ action: z.literal("pause") }),
-  z.object({ action: z.literal("resume") }),
-  z.object({ action: z.literal("reset") }),
-  z.object({ action: z.literal("speed"), speedFactor: z.number().min(0.25).max(8) }),
-]);
 
 app.get("/internal/simulation/:propertyId", async (c) => {
   if (c.req.header("x-service-secret") !== env.FLY_SERVICE_SECRET) {

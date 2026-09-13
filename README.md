@@ -67,10 +67,19 @@ This repository has completed Phases 1–7 of the roadmap in
   to device markers and linked doors. Browsers without WebGL fall back to
   the live 2D plan. Browser SSE connections now use short-lived,
   property-scoped tokens minted only after a membership check.
+- **Phase 8** — shared 2D/3D operational sync via `@homeguard/state`
+  (Zustand + SSE), so floor plan, twin, and dashboard read one cache.
+- **Phase 9** — `SimulationProvider`, logical clock, and Normal Evening
+  fixture; realtime-service run manager with Postgres checkpoints.
+- **Phase 10** — Leaving Home, Night Mode, Intrusion, and Device Failure
+  stories plus an authenticated simulation control page
+  (`/properties/[propertyId]/simulation`) with start/pause/resume/reset
+  and speed controls. Intrusion drives the real security state machine
+  through normalized SIMULATION-sourced events.
 
-Not yet implemented: the shared 2D/3D Zustand synchronization layer,
-simulation, alerts/automation, and historical replay — see the phased
-roadmap in `ARCHITECTURE.md` section V for what's next and in what order.
+Not yet implemented: alerts/automation, occupancy, historical replay —
+see the phased roadmap in `ARCHITECTURE.md` section V for what's next
+and in what order.
 
 ## Technology stack
 
