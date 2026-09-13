@@ -15,7 +15,8 @@
       "**/.turbo/**",
       "**/coverage/**",
       "**/generated/**",
-      "**/*.md"
+      "**/*.md",
+      "apps/*/components/ui/**"
     ]
   },
   "formatter": {

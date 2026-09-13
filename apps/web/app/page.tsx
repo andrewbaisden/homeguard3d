@@ -1,4 +1,10 @@
-export default function Home() {
+import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/session";
+import Link from "next/link";
+
+export default async function Home() {
+  const session = await getSession();
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
       <h1 className="text-2xl font-semibold tracking-tight">HomeGuard 3D</h1>
@@ -7,6 +13,13 @@ export default function Home() {
         model, 2D/3D views, realtime pipeline, and simulation engine land in upcoming phases. See
         ARCHITECTURE.md and DECISIONS.md at the repo root.
       </p>
+      <Button
+        render={
+          <Link href={session ? "/properties" : "/sign-in"}>
+            {session ? "Go to properties" : "Sign in"}
+          </Link>
+        }
+      />
     </main>
   );
 }
