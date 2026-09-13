@@ -1,0 +1,30 @@
+{
+  "name": "homeguard3d",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HomeGuard 3D — a smart-home digital twin and security monitoring portfolio platform",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm --filter @homeguard/web dev",
+    "build": "pnpm -r --filter=./apps/* build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "db:generate": "pnpm --filter @homeguard/database exec prisma generate",
+    "db:migrate": "pnpm --filter @homeguard/database exec prisma migrate dev",
+    "db:validate": "pnpm --filter @homeguard/database exec prisma validate",
+    "db:studio": "pnpm --filter @homeguard/database exec prisma studio",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "typescript": "^5.7.3"
+  }
+}

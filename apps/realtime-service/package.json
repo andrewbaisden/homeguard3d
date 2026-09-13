@@ -1,0 +1,25 @@
+{
+  "name": "@homeguard/realtime-service",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@homeguard/config": "workspace:*",
+    "@homeguard/database": "workspace:*",
+    "@homeguard/domain": "workspace:*",
+    "bullmq": "^5.34.5",
+    "ioredis": "^5.4.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

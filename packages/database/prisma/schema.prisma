@@ -1,0 +1,561 @@
+// HomeGuard 3D — Prisma schema
+//
+// See ARCHITECTURE.md and DECISIONS.md for the reasoning behind every
+// non-obvious modeling choice referenced in the comments below.
+//
+// Three state buckets (do not conflate them — see DECISIONS.md ADR-002):
+//   Structural  — Property, Floor, Room, Door, Window, Device identity, SecurityZone + joins
+//   Operational — Device status columns, SecurityState (authoritative projection, ADR-003)
+//   Historical  — Event (append-only), Snapshot, Alert lifecycle timestamps
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Identity & Access (User) + Better Auth adapter tables.
+//
+// Session/Account/Verification mirror Better Auth's default Prisma
+// adapter shape. When auth is actually wired up (Phase 2+), regenerate
+// these with `npx @better-auth/cli generate` against the real Better
+// Auth config rather than hand-editing — this scaffold shape is a
+// best-effort placeholder so the schema is migratable today.
+// ─────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  name          String?
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships Membership[]
+  sessions    Session[]
+  accounts    Account[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  role       Role
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@map("memberships")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Structural: Property / Floor / Room / Door / Window
+//
+// No standalone Wall table — walls are implied by each Room's
+// `polygon` (an ordered vertex loop); Door/Window reference a wall by
+// segment index + offset. See DECISIONS.md ADR (schema scope) for why.
+// ─────────────────────────────────────────────────────────────────
+
+model Property {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships     Membership[]
+  floors          Floor[]
+  devices         Device[]
+  zones           SecurityZone[]
+  securityState   SecurityState?
+  events          Event[]
+  alerts          Alert[]
+  automationRules AutomationRule[]
+  simulationRuns  SimulationRun[]
+  snapshots       Snapshot[]
+
+  @@map("properties")
+}
+
+model Floor {
+  id         String @id @default(cuid())
+  propertyId String
+  name       String
+  level      Int
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rooms    Room[]
+
+  @@unique([propertyId, level])
+  @@map("floors")
+}
+
+enum RoomKind {
+  LIVING_ROOM
+  KITCHEN
+  BEDROOM
+  BATHROOM
+  OFFICE
+  HALLWAY
+  GARAGE
+  UTILITY
+  GARDEN
+  OTHER
+}
+
+model Room {
+  id      String   @id @default(cuid())
+  floorId String
+  name    String
+  kind    RoomKind
+  polygon Json // ordered [{x,y}, ...] vertex loop, meters, property-local coordinate system
+
+  floor          Floor      @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  doors          Door[]     @relation("RoomDoors")
+  adjoiningDoors Door[]     @relation("AdjoiningRoomDoors")
+  windows        Window[]
+  devices        Device[]
+  zoneLinks      ZoneRoom[]
+
+  @@map("rooms")
+}
+
+model Door {
+  id              String  @id @default(cuid())
+  roomId          String
+  adjoiningRoomId String?
+  wallOffset      Json // { wallSegmentIndex, offsetMeters, widthMeters }
+  isExterior      Boolean @default(false)
+  deviceId        String? @unique
+
+  room          Room    @relation("RoomDoors", fields: [roomId], references: [id], onDelete: Cascade)
+  adjoiningRoom Room?   @relation("AdjoiningRoomDoors", fields: [adjoiningRoomId], references: [id])
+  device        Device? @relation(fields: [deviceId], references: [id])
+
+  @@map("doors")
+}
+
+model Window {
+  id         String  @id @default(cuid())
+  roomId     String
+  wallOffset Json
+  deviceId   String? @unique
+
+  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@map("windows")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Devices: provider-neutral, capability-based.
+//
+// Current-state is typed nullable columns on Device, not per-category
+// subtype tables or a generic key/value table — see DECISIONS.md
+// (device/capability model ADR) for the full rationale. Only the
+// columns matching a device's `capabilities` are ever populated; that
+// invariant is enforced by the domain reducer + unit tests, not a DB
+// constraint.
+// ─────────────────────────────────────────────────────────────────
+
+enum DeviceCategory {
+  CAMERA
+  LOCK
+  CONTACT_SENSOR
+  MOTION_SENSOR
+  ENV_SENSOR
+  SIREN
+  HUB
+}
+
+enum Capability {
+  LOCK
+  CONTACT
+  MOTION
+  VIDEO
+  AUDIO
+  BATTERY
+  TEMPERATURE
+  HUMIDITY
+  SMOKE
+}
+
+enum Connectivity {
+  ONLINE
+  STALE
+  OFFLINE
+  UNKNOWN
+}
+
+enum DoorState {
+  OPEN
+  CLOSED
+  UNKNOWN
+}
+
+enum LockState {
+  LOCKED
+  UNLOCKED
+  JAMMED
+  UNKNOWN
+}
+
+enum MotionState {
+  ACTIVE
+  INACTIVE
+  UNKNOWN
+}
+
+enum CameraState {
+  ONLINE
+  OFFLINE
+  RECORDING
+}
+
+model Device {
+  id         String         @id @default(cuid())
+  propertyId String
+  roomId     String?
+  category   DeviceCategory
+  label      String
+  provider   String // "SIMULATION" | "HOME_ASSISTANT" | ... — free text until a second real provider exists
+  externalId String? // provider-native id, for future real integrations
+
+  connectivity        Connectivity @default(UNKNOWN)
+  lastSeenAt          DateTime?
+  offlineThresholdSec Int          @default(300)
+
+  // Typed current-state columns (nullable; only relevant ones populated per device category)
+  doorState   DoorState?
+  lockState   LockState?
+  motionState MotionState?
+  cameraState CameraState?
+  batteryPct  Int?
+  tempC       Float?
+  humidityPct Float?
+
+  stateUpdatedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  property     Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room         Room?              @relation(fields: [roomId], references: [id])
+  capabilities DeviceCapability[]
+  door         Door?
+  window       Window?
+  zoneLinks    ZoneDevice[]
+  events       Event[]
+  alerts       Alert[]
+
+  @@index([propertyId])
+  @@index([roomId])
+  @@map("devices")
+}
+
+model DeviceCapability {
+  id         String     @id @default(cuid())
+  deviceId   String
+  capability Capability
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, capability])
+  @@map("device_capabilities")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Security: modes, state machine, zones
+// ─────────────────────────────────────────────────────────────────
+
+enum SecurityMode {
+  DISARMED
+  HOME
+  NIGHT
+  AWAY
+}
+
+// See DECISIONS.md (security state machine ADR) for the full transition
+// table. Logic lives in packages/domain/src/security/stateMachine.ts —
+// a pure module, never scattered across UI/route handlers.
+enum SecurityMachineState {
+  IDLE_DISARMED
+  EXIT_DELAY
+  ARMED
+  ENTRY_DELAY
+  ALERT
+  ALARM
+  DISARMING
+}
+
+model SecurityState {
+  id           String               @id @default(cuid())
+  propertyId   String               @unique
+  mode         SecurityMode         @default(DISARMED)
+  machineState SecurityMachineState @default(IDLE_DISARMED)
+  armedById    String?
+  changedAt    DateTime             @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("security_states")
+}
+
+model SecurityZone {
+  id         String @id @default(cuid())
+  propertyId String
+  name       String // e.g. PERIMETER, GROUND_FLOOR, UPSTAIRS, GARAGE, GARDEN, or a custom label
+
+  property  Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rooms     ZoneRoom[]
+  devices   ZoneDevice[]
+  modeLinks ZoneModeActivation[]
+
+  @@unique([propertyId, name])
+  @@map("security_zones")
+}
+
+model ZoneRoom {
+  id     String @id @default(cuid())
+  zoneId String
+  roomId String
+
+  zone SecurityZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  room Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, roomId])
+  @@map("zone_rooms")
+}
+
+model ZoneDevice {
+  id       String @id @default(cuid())
+  zoneId   String
+  deviceId String
+
+  zone   SecurityZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  device Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, deviceId])
+  @@map("zone_devices")
+}
+
+// Which zones are "hot" (arm-relevant) for a given security mode.
+// Data, not code — editable per property without a deploy. See
+// ARCHITECTURE.md section F.
+model ZoneModeActivation {
+  id     String       @id @default(cuid())
+  zoneId String
+  mode   SecurityMode
+
+  zone SecurityZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, mode])
+  @@map("zone_mode_activations")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Events: the append-only historical ledger everything else derives
+// from. `type` is intentionally a validated String, not a Prisma enum
+// — the closed vocabulary is enforced by the Zod discriminated union
+// in packages/domain/src/events/schema.ts, so new event types (future
+// providers, new phases) never require a schema migration.
+// ─────────────────────────────────────────────────────────────────
+
+enum EventSource {
+  DEVICE
+  USER
+  AUTOMATION
+  SIMULATION
+  SYSTEM
+}
+
+model Event {
+  id         String      @id @default(cuid())
+  eventId    String      @unique // provider-supplied idempotency key
+  propertyId String
+  deviceId   String?
+  roomId     String?
+  entityId   String? // generic cross-reference (occupant, alert, ...)
+  type       String // e.g. "door.opened" — validated against packages/domain's Zod union
+  source     EventSource
+  sequence   BigInt? // per (propertyId, deviceId) monotonic counter, for out-of-order detection
+  occurredAt DateTime // provider/device-asserted time
+  receivedAt DateTime    @default(now())
+  metadata   Json // per-type payload, Zod-validated at ingestion, opaque to the DB
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  device   Device?  @relation(fields: [deviceId], references: [id])
+
+  @@index([propertyId, occurredAt])
+  @@index([propertyId, type])
+  @@index([deviceId, occurredAt])
+  @@map("events")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Alerts & Automation
+// ─────────────────────────────────────────────────────────────────
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model Alert {
+  id               String        @id @default(cuid())
+  propertyId       String
+  severity         AlertSeverity
+  status           AlertStatus   @default(OPEN)
+  title            String
+  triggerEventId   String?
+  deviceId         String?
+  roomId           String?
+  createdAt        DateTime      @default(now())
+  acknowledgedAt   DateTime?
+  resolvedAt       DateTime?
+  acknowledgedById String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  device   Device?  @relation(fields: [deviceId], references: [id])
+
+  @@index([propertyId, status])
+  @@map("alerts")
+}
+
+model AutomationRule {
+  id         String   @id @default(cuid())
+  propertyId String
+  name       String
+  enabled    Boolean  @default(true)
+  definition Json // Zod-validated { trigger, conditions[], actions[] } — never eval'd, see ARCHITECTURE.md section P
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("automation_rules")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Simulation: a SmartHomeProvider like any future real integration —
+// see ARCHITECTURE.md section N/O.
+// ─────────────────────────────────────────────────────────────────
+
+enum SimulationStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+model SimulationScenario {
+  id     String @id @default(cuid())
+  key    String @unique // "normal-evening" | "leaving-home" | "night-mode" | "intrusion" | "device-failure" | ...
+  name   String
+  seed   Int
+  script Json // { steps: [{ atSimTimeMs, eventTemplate }] } — seeded PRNG drives any randomized branching
+
+  runs SimulationRun[]
+
+  @@map("simulation_scenarios")
+}
+
+model SimulationRun {
+  id          String           @id @default(cuid())
+  propertyId  String
+  scenarioId  String
+  status      SimulationStatus @default(IDLE)
+  speedFactor Float            @default(1)
+  simClockMs  Int              @default(0) // logical clock, decoupled from wall-clock time
+  startedAt   DateTime?
+
+  property Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  scenario SimulationScenario @relation(fields: [scenarioId], references: [id])
+
+  @@map("simulation_runs")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Replay support (design in ARCHITECTURE.md section Q; built Phase 13)
+// ─────────────────────────────────────────────────────────────────
+
+model Snapshot {
+  id         String   @id @default(cuid())
+  propertyId String
+  takenAt    DateTime
+  state      Json // serialized full operational-state projection at this instant
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, takenAt])
+  @@map("snapshots")
+}

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate/validate only check that this is set, not that it's
+      # reachable — no live Postgres is provisioned in this workflow.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/homeguard?schema=public"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # prisma generate only needs the schema, not a live database —
+      # required before typecheck/build since @homeguard/database's
+      # generated client is a workspace dependency of every other package.
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  # Deploy steps are intentionally stubbed for this pass — see
+  # ARCHITECTURE.md section U. Vercel deploys apps/web via its own
+  # GitHub integration; a future job here would `flyctl deploy` the
+  # realtime service once real credentials/secrets are provisioned.

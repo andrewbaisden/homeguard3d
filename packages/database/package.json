@@ -1,0 +1,23 @@
+{
+  "name": "@homeguard/database",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "validate": "prisma validate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "prisma": "^6.2.1",
+    "typescript": "^5.7.3"
+  }
+}

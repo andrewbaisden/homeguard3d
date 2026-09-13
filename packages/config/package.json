@@ -1,0 +1,19 @@
+{
+  "name": "@homeguard/config",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./env": "./src/env.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.7.3"
+  }
+}

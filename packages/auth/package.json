@@ -1,0 +1,20 @@
+{
+  "name": "@homeguard/auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@homeguard/database": "workspace:*",
+    "better-auth": "^1.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.7.3"
+  }
+}
