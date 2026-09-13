@@ -23,6 +23,11 @@ export const webEnvSchema = sharedEnvSchema.extend({
 export const realtimeServiceEnvSchema = sharedEnvSchema.extend({
   FLY_SERVICE_SECRET: z.string().min(16),
   PORT: z.coerce.number().int().positive().default(8080),
+  // The browser opens the SSE stream directly against this service (see
+  // ARCHITECTURE.md section J), which makes it a cross-origin request in
+  // every environment — Vercel and Fly.io are always different origins,
+  // and localhost:3000/localhost:8080 count as different origins too.
+  WEB_APP_ORIGIN: z.string().url(),
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

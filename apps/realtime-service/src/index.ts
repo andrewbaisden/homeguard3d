@@ -1,6 +1,7 @@
 import { loadEnv, realtimeServiceEnvSchema } from "@homeguard/config/env";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { IngestionValidationError, ingestEvent } from "./ingestion/handler";
 import { createRedisRealtimeBus } from "./realtime/pubsub";
@@ -51,12 +52,15 @@ app.post("/internal/ingest", async (c) => {
 });
 
 // Direct browser-facing SSE stream (see ARCHITECTURE.md section J: opened
-// directly against this service, not proxied through Vercel).
+// directly against this service, not proxied through Vercel). Vercel and
+// Fly.io are always different origins, so this needs CORS even though
+// both endpoints live on "the same app" conceptually.
 //
 // TODO(Phase 8): this endpoint has no per-viewer authorization yet —
 // there is no browser client wired up until the 2D/3D sync layer lands.
 // Design a short-lived token (minted by an authorized apps/web request)
 // before any real client connects to it.
+app.use("/realtime/*", cors({ origin: env.WEB_APP_ORIGIN }));
 app.get("/realtime/:propertyId/stream", (c) => {
   const propertyId = c.req.param("propertyId");
 

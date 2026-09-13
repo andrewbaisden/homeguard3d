@@ -30,7 +30,7 @@ architectural choice.
 
 ## Status
 
-This repository has completed Phases 1–3 of the roadmap in
+This repository has completed Phases 1–4 of the roadmap in
 `ARCHITECTURE.md` section V:
 
 - **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
@@ -40,6 +40,13 @@ This repository has completed Phases 1–3 of the roadmap in
   (`apps/realtime-service`): a validated, idempotent, ordering-aware
   event → device-state-projection path, provable with a manually-POSTed
   event (see `apps/realtime-service/README.md`).
+- **Phase 4** — Device CRUD/capabilities and a live dashboard table
+  (`apps/web/app/(dashboard)/properties/[propertyId]/devices`) that
+  subscribes to the Phase 3 SSE stream and applies incoming events
+  through the exact same `reduceDeviceEvent` function the realtime
+  service uses at ingestion — proving the "one reducer, client and
+  server" principle from `ARCHITECTURE.md` section M ahead of the full
+  Phase 8 sync layer.
 
 Not yet implemented: 2D/3D rendering, the security state machine,
 simulation, alerts/automation, and historical replay — see the phased

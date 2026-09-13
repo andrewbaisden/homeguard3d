@@ -26,3 +26,29 @@ export const WALL_SEGMENTS = [
   { index: 2, label: "South" },
   { index: 3, label: "West" },
 ] as const;
+
+export const DEVICE_CATEGORIES = [
+  "CAMERA",
+  "LOCK",
+  "CONTACT_SENSOR",
+  "MOTION_SENSOR",
+  "ENV_SENSOR",
+  "SIREN",
+  "HUB",
+] as const;
+
+export type DeviceCategoryLiteral = (typeof DEVICE_CATEGORIES)[number];
+
+export const CAPABILITIES = [
+  "LOCK",
+  "CONTACT",
+  "MOTION",
+  "VIDEO",
+  "AUDIO",
+  "BATTERY",
+  "TEMPERATURE",
+  "HUMIDITY",
+  "SMOKE",
+] as const;
+
+export type CapabilityLiteral = (typeof CAPABILITIES)[number];

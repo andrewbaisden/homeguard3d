@@ -4,6 +4,7 @@ import { WALL_SEGMENTS } from "@/lib/constants";
 import { requireAccess } from "@/server/authz";
 import { PropertyAccessError } from "@homeguard/auth";
 import { prisma } from "@homeguard/database";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NewDoorForm } from "./new-door-form";
 import { NewFloorForm } from "./new-floor-form";
@@ -70,7 +71,15 @@ export default async function PropertyPage({
           <h1 className="text-xl font-semibold">{property.name}</h1>
           <p className="text-sm text-neutral-500">{property.timezone}</p>
         </div>
-        <Badge variant="outline">{property.securityState?.mode ?? "DISARMED"}</Badge>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/properties/${property.id}/devices`}
+            className="text-sm text-neutral-500 hover:underline"
+          >
+            Devices
+          </Link>
+          <Badge variant="outline">{property.securityState?.mode ?? "DISARMED"}</Badge>
+        </div>
       </div>
 
       <Card>
