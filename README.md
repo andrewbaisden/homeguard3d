@@ -30,11 +30,20 @@ architectural choice.
 
 ## Status
 
-This repository is at **Phase 1: architecture + scaffold**. The domain
-model (Prisma schema), workspace tooling, CI, and this documentation set
-are in place. No domain UI, 2D/3D rendering, realtime pipeline, or
-simulation engine is implemented yet — see the phased roadmap in
-`ARCHITECTURE.md` section V for what's next and in what order.
+This repository has completed Phases 1–3 of the roadmap in
+`ARCHITECTURE.md` section V:
+
+- **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
+- **Phase 2** — auth-gated Property/Floor/Room/Door/Window onboarding
+  (`apps/web/app/(dashboard)/properties/**`).
+- **Phase 3** — the realtime service's ingestion pipeline and SSE stream
+  (`apps/realtime-service`): a validated, idempotent, ordering-aware
+  event → device-state-projection path, provable with a manually-POSTed
+  event (see `apps/realtime-service/README.md`).
+
+Not yet implemented: 2D/3D rendering, the security state machine,
+simulation, alerts/automation, and historical replay — see the phased
+roadmap in `ARCHITECTURE.md` section V for what's next and in what order.
 
 ## Technology stack
 

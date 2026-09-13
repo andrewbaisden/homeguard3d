@@ -298,8 +298,9 @@ model Device {
   tempC       Float?
   humidityPct Float?
 
-  stateUpdatedAt DateTime?
-  createdAt      DateTime  @default(now())
+  stateUpdatedAt      DateTime?
+  lastAppliedSequence BigInt? // per-device monotonic Event.sequence last folded into state — see ARCHITECTURE.md section G (out-of-order handling)
+  createdAt           DateTime @default(now())
 
   property     Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   room         Room?              @relation(fields: [roomId], references: [id])

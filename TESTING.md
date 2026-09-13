@@ -7,11 +7,14 @@ machine has real invalid-transition risk. This document describes what
 is tested, at what layer, and why — and how 3D functionality is tested
 *without* attempting to test Three.js itself.
 
-**Status:** this describes the target testing strategy. As of Phase 1
-(scaffold), no domain logic exists yet to test; `packages/domain`'s
-`test` script is a placeholder that will be replaced with real Vitest
-suites starting Phase 4 (device reducer) and Phase 5 (security state
-machine).
+**Status:** this describes the target testing strategy. As of Phase 3,
+`packages/domain` has real Vitest suites for the event schema
+(`src/events/__tests__/schema.test.ts`) and the device-state reducer
+(`src/devices/__tests__/reducer.test.ts`); the security state machine's
+suite lands in Phase 5. The realtime service's ingestion pipeline
+(idempotency, ordering, auth) is verified manually against a live
+Postgres/Redis for now (see `apps/realtime-service/README.md`) — a
+proper integration-test harness for it is Phase 14 scope.
 
 ## Test layers
 
@@ -247,7 +250,7 @@ to `main`: install → Prisma generate → lint (Biome) → typecheck → test
 (Vitest) → build (both apps). State-machine and event-reducer tests are
 part of the standard `pnpm test` run and therefore block merge on
 failure like any other test — there is no separate "critical tests"
-gate yet, since as of Phase 1 there are no domain tests to run.
+gate yet, since `packages/domain` is still the only package with tests.
 Playwright is not yet wired into CI (added alongside Phase 14); running
 it will require either a lightweight seeded test database in CI or a
 recorded-fixture mode, to be decided when that phase starts.
