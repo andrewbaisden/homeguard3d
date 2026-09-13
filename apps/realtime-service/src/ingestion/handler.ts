@@ -18,6 +18,7 @@ import {
 } from "@homeguard/domain";
 import type { Queue } from "bullmq";
 import { enqueueAutomationJobs } from "../jobs/automation-worker";
+import { type SnapshotJobData, enqueueSecurityModeSnapshot } from "../jobs/snapshot";
 import type { OccupancyStore } from "../occupancy/store";
 import type { RealtimeBus } from "../realtime/pubsub";
 import { type ReIngestSyntheticEvent, scheduleSecurityEffects } from "../security/timers";
@@ -52,15 +53,21 @@ interface TxOutcome {
   publishEvents: DomainEvent[];
   effects: SecurityEffect[];
   automationJobs: AutomationJobDescriptor[];
+  snapshotPropertyId?: string;
 }
 
 type Tx = Prisma.TransactionClient;
 
 let automationQueue: Queue<AutomationJobDescriptor> | undefined;
+let snapshotQueue: Queue<SnapshotJobData> | undefined;
 let occupancyStore: OccupancyStore | undefined;
 
 export function setAutomationQueue(queue: Queue<AutomationJobDescriptor> | undefined): void {
   automationQueue = queue;
+}
+
+export function setSnapshotQueue(queue: Queue<SnapshotJobData> | undefined): void {
+  snapshotQueue = queue;
 }
 
 export function setOccupancyStore(store: OccupancyStore | undefined): void {
@@ -229,6 +236,12 @@ export async function ingestEvent(input: unknown, bus: RealtimeBus): Promise<Ing
   if (automationQueue && outcome.automationJobs.length > 0) {
     await enqueueAutomationJobs(automationQueue, outcome.automationJobs).catch((error) => {
       console.error("[automation] failed to enqueue jobs", error);
+    });
+  }
+
+  if (snapshotQueue && outcome.snapshotPropertyId) {
+    await enqueueSecurityModeSnapshot(snapshotQueue, outcome.snapshotPropertyId).catch((error) => {
+      console.error("[snapshot] failed to enqueue security-mode snapshot", error);
     });
   }
 
@@ -517,5 +530,12 @@ async function applySecurityEvent(
 
   const publishEvents: DomainEvent[] = [event];
   const automationJobs = await applyAlertAndAutomationEffects(tx, event, previous, publishEvents);
-  return { status: "applied", publishEvents, effects: result.effects, automationJobs };
+  const modeChanged = previous.security.mode !== result.next.mode;
+  return {
+    status: "applied",
+    publishEvents,
+    effects: result.effects,
+    automationJobs,
+    ...(modeChanged ? { snapshotPropertyId: event.propertyId } : {}),
+  };
 }

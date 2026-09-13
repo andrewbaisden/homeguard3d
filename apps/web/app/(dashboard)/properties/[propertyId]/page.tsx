@@ -94,6 +94,9 @@ export default async function PropertyPage({
           <Link href={`/properties/${property.id}/automations`} className="hover:underline">
             Automations
           </Link>
+          <Link href={`/properties/${property.id}/replay`} className="hover:underline">
+            Replay
+          </Link>
         </div>
       </div>
 

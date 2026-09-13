@@ -80,8 +80,10 @@ This repository has completed Phases 1–7 of the roadmap in
   workers, alert lifecycle UI, and a structured rule builder.
 - **Phase 12** — Redis-backed occupancy estimate (UNKNOWN/VACANT/
   OCCUPIED + confidence) with live SSE updates and dashboard indicator.
+- **Phase 13** — periodic + security-mode snapshots and a historical
+  replay page that folds events through the live reducers.
 
-Not yet implemented: historical replay —
+Not yet implemented: Playwright E2E journeys —
 see the phased roadmap in `ARCHITECTURE.md` section V for what's next
 and in what order.
 

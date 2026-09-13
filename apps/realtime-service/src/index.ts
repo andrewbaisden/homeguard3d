@@ -10,8 +10,10 @@ import {
   ingestEvent,
   setAutomationQueue,
   setOccupancyStore,
+  setSnapshotQueue,
 } from "./ingestion/handler";
 import { createAutomationQueue, startAutomationWorker } from "./jobs/automation-worker";
+import { createSnapshotQueue, scheduleSnapshotJobs, startSnapshotWorker } from "./jobs/snapshot";
 import { OccupancyStore } from "./occupancy/store";
 import { createRedisRealtimeBus } from "./realtime/pubsub";
 import { SimulationControlError, SimulationManager } from "./simulation/manager";
@@ -28,6 +30,15 @@ const automationQueue = createAutomationQueue(env.REDIS_URL);
 setAutomationQueue(automationQueue);
 const occupancy = new OccupancyStore(env.REDIS_URL);
 setOccupancyStore(occupancy);
+const snapshotQueue = createSnapshotQueue(env.REDIS_URL);
+setSnapshotQueue(snapshotQueue);
+void scheduleSnapshotJobs(snapshotQueue).catch((error) => {
+  console.error("[snapshot] failed to schedule interval job", error);
+});
+const snapshotWorker = startSnapshotWorker(env.REDIS_URL, occupancy);
+snapshotWorker.on("failed", (job, error) => {
+  console.error("[snapshot] job failed", job?.id, error);
+});
 const automationWorker = startAutomationWorker(env.REDIS_URL, bus);
 automationWorker.on("failed", (job, error) => {
   console.error("[automation] job failed", job?.id, error);

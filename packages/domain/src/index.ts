@@ -21,3 +21,4 @@ export * from "./alerts/evaluate";
 export * from "./automation/schema";
 export * from "./automation/evaluate";
 export * from "./occupancy/estimate";
+export * from "./replay/replay";
