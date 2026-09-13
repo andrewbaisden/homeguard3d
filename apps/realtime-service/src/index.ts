@@ -5,22 +5,26 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
-import { IngestionValidationError, ingestEvent } from "./ingestion/handler";
+import { IngestionValidationError, ingestEvent, setAutomationQueue } from "./ingestion/handler";
+import { createAutomationQueue, startAutomationWorker } from "./jobs/automation-worker";
 import { createRedisRealtimeBus } from "./realtime/pubsub";
 import { SimulationControlError, SimulationManager } from "./simulation/manager";
 
 /**
  * HomeGuard realtime service — the persistent Node process deployed to
- * Fly.io. See ARCHITECTURE.md section U/J for the full split with the
- * Vercel app.
- *
- * Phase 3 scope: the ingestion endpoint and SSE stream, provable with a
- * manually-POSTed test event. BullMQ workers and the simulation clock
- * are wired in later phases (see ARCHITECTURE.md section V).
+ * Fly.io. Owns ingestion, SSE, security timers, simulation clock, and
+ * BullMQ automation action workers.
  */
 
 const env = loadEnv(realtimeServiceEnvSchema);
 const bus = createRedisRealtimeBus(env.REDIS_URL);
+const automationQueue = createAutomationQueue(env.REDIS_URL);
+setAutomationQueue(automationQueue);
+const automationWorker = startAutomationWorker(env.REDIS_URL, bus);
+automationWorker.on("failed", (job, error) => {
+  console.error("[automation] job failed", job?.id, error);
+});
+
 const simulations = new SimulationManager(env.REDIS_URL, bus);
 void simulations.initialize().catch((error) => {
   console.error("[simulation] failed to restore running simulations", error);
@@ -30,9 +34,6 @@ const app = new Hono();
 
 app.get("/healthz", (c) => c.text("ok"));
 
-// Internal, service-to-service only — the Vercel app calls this after
-// authorizing the end user; end-user auth never reaches this process.
-// See ARCHITECTURE.md section J and R.
 app.post("/internal/ingest", async (c) => {
   const secret = c.req.header("x-service-secret");
   if (secret !== env.FLY_SERVICE_SECRET) {
@@ -99,11 +100,6 @@ app.post("/internal/simulation/:propertyId/control", async (c) => {
   }
 });
 
-// Direct browser-facing SSE stream (see ARCHITECTURE.md section J: opened
-// directly against this service, not proxied through Vercel). Vercel and
-// Fly.io are always different origins, so this needs CORS even though
-// both endpoints live on "the same app" conceptually.
-//
 app.use("/realtime/*", cors({ origin: env.WEB_APP_ORIGIN }));
 app.get("/realtime/:propertyId/stream", (c) => {
   const propertyId = c.req.param("propertyId");

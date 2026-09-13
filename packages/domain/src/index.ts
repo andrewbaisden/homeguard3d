@@ -17,3 +17,6 @@ export * from "./providers/SmartHomeProvider";
 export * from "./providers/SimulationProvider";
 export * from "./simulation/clock";
 export * from "./simulation/scenario";
+export * from "./alerts/evaluate";
+export * from "./automation/schema";
+export * from "./automation/evaluate";

@@ -5,8 +5,8 @@ Persistent Node process deployed to Fly.io. Owns the realtime transport
 clock — see `ARCHITECTURE.md` section U (Deployment Architecture) and
 section J (Realtime Transport Decision) at the repo root.
 
-**Status: Phase 9/10 — ingestion, SSE, security state machine, and
-simulation clock with story scenarios + authenticated web controls.**
+**Status: Phase 9–11 — ingestion, SSE, security, simulation, and
+alerts/automation (BullMQ action workers).**
 Implemented:
 
 - `POST /internal/ingest` — Zod-validates a domain event and routes it
@@ -36,7 +36,7 @@ Implemented:
   Postgres, high-frequency clock state is held in Redis, and every step
   enters through the same `ingestEvent` pipeline with `source: SIMULATION`.
 
-Not yet implemented: BullMQ workers.
+Not yet implemented: occupancy estimates, snapshot/replay jobs.
 
 ## Local development
 

@@ -8,11 +8,11 @@ import { z } from "zod";
  * source, occurredAt, sequence?, metadata — see ARCHITECTURE.md
  * section G.
  *
- * Covers Phase 3/4's device-state events and Phase 5's security
- * events. Alerts/automation (Phase 11) and occupancy (Phase 12) event
- * types are added to this union when those phases implement the
- * reducer logic that consumes them — see AGENTS.md ("adding a new
- * event type means adding a case here, not a migration").
+ * Covers Phase 3/4 device-state, Phase 5 security, and Phase 11 alert
+ * lifecycle events. Occupancy (Phase 12) types are added when that
+ * phase implements the reducer logic that consumes them — see
+ * AGENTS.md ("adding a new event type means adding a case here, not a
+ * migration").
  */
 
 export const eventSourceSchema = z.enum(["DEVICE", "USER", "AUTOMATION", "SIMULATION", "SYSTEM"]);
@@ -77,6 +77,15 @@ export const domainEventSchema = z.discriminatedUnion("type", [
   propertyEvent("security.entry_delay_expired", {}),
   propertyEvent("security.alert_grace_expired", {}),
   propertyEvent("security.disarmed", {}),
+
+  // Alerts (Phase 11) — lifecycle is auditable via Events; Alert rows are the projection.
+  propertyEvent("alert.raised", {
+    alertId: z.string().min(1),
+    severity: z.enum(["INFO", "WARNING", "CRITICAL"]),
+    title: z.string().min(1),
+  }),
+  propertyEvent("alert.acknowledged", { alertId: z.string().min(1) }),
+  propertyEvent("alert.resolved", { alertId: z.string().min(1) }),
 ]);
 
 export type DomainEvent = z.infer<typeof domainEventSchema>;
