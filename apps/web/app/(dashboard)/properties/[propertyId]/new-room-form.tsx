@@ -67,7 +67,9 @@ export function NewRoomForm({ propertyId, floorId }: { propertyId: string; floor
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id={`${floorId}-room-kind`}>
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder="Select type">
+                    {(value: string | null) => value?.replaceAll("_", " ")}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {ROOM_KINDS.map((kind) => (

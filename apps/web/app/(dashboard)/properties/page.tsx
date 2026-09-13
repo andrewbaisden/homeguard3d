@@ -27,7 +27,7 @@ export default async function PropertiesPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Properties</h1>
-        <Button render={<Link href="/properties/new">New property</Link>} />
+        <Button nativeButton={false} render={<Link href="/properties/new">New property</Link>} />
       </div>
 
       {memberships.length === 0 ? (

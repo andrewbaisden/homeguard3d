@@ -14,6 +14,7 @@ export default async function Home() {
         ARCHITECTURE.md and DECISIONS.md at the repo root.
       </p>
       <Button
+        nativeButton={false}
         render={
           <Link href={session ? "/properties" : "/sign-in"}>
             {session ? "Go to properties" : "Sign in"}

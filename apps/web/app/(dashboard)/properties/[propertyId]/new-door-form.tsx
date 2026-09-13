@@ -58,7 +58,9 @@ export function NewDoorForm({ propertyId, roomId }: { propertyId: string; roomId
         render={({ field }) => (
           <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
             <SelectTrigger size="sm" className="w-28">
-              <SelectValue placeholder="Wall" />
+              <SelectValue placeholder="Wall">
+                {(value: string | null) => WALL_SEGMENTS[Number(value)]?.label}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {WALL_SEGMENTS.map((segment) => (
