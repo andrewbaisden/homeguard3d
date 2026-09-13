@@ -29,7 +29,13 @@ Implemented:
   a short-lived, property-scoped token minted only after `requireAccess`.
 - `GET /healthz`.
 
-Not yet implemented: BullMQ workers, the simulation clock (Phase 9).
+- `GET /internal/simulation/:propertyId` and
+  `POST /internal/simulation/:propertyId/control` — service-authenticated
+  simulation status and logical-clock controls. Runs are durable in
+  Postgres, high-frequency clock state is held in Redis, and every step
+  enters through the same `ingestEvent` pipeline with `source: SIMULATION`.
+
+Not yet implemented: BullMQ workers.
 
 ## Local development
 
