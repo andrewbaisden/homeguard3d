@@ -253,10 +253,11 @@ test data didn't resemble anything realistic.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs, on every push and PR
 to `main`: install → Prisma generate → lint (Biome) → typecheck → test
-(Vitest) → build (both apps). State-machine and event-reducer tests are
-part of the standard `pnpm test` run and therefore block merge on
-failure like any other test — there is no separate "critical tests"
-gate yet, since `packages/domain` is still the only package with tests.
-Playwright is not yet wired into CI (added alongside Phase 14); running
-it will require either a lightweight seeded test database in CI or a
-recorded-fixture mode, to be decided when that phase starts.
+(Vitest) → build (both apps). Realtime reconnect/dedup coverage lives
+in `@homeguard/state` Vitest tests and therefore blocks merge.
+
+Playwright journeys live under `apps/web/e2e/` (`pnpm --filter
+@homeguard/web e2e`). Specs skip unless `E2E_PROPERTY_ID` is set after
+running `apps/web/e2e/seed.ts` against a local stack. A separate
+`.github/workflows/e2e.yml` workflow is available via
+`workflow_dispatch` for full-stack runs.

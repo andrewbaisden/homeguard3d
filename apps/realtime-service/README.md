@@ -36,7 +36,7 @@ Implemented:
   Postgres, high-frequency clock state is held in Redis, and every step
   enters through the same `ingestEvent` pipeline with `source: SIMULATION`.
 
-Not yet implemented: Playwright E2E (Phase 14).
+Not yet implemented: nothing outstanding for Phases 1–14 on this service.
 
 ## Local development
 

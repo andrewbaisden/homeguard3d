@@ -1,0 +1,69 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/web/e2e/**"
+      - "apps/web/playwright.config.ts"
+      - ".github/workflows/e2e.yml"
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Playwright journeys
+    runs-on: ubuntu-latest
+    # Full stack E2E needs seeded auth + live services. Dispatch manually
+    # with secrets, or run locally: pnpm --filter @homeguard/web e2e
+    if: github.event_name == 'workflow_dispatch'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: homeguard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeguard?schema=public
+      REDIS_URL: redis://localhost:6379
+      FLY_SERVICE_SECRET: e2e-fly-service-secret
+      FLY_INGESTION_URL: http://localhost:8080
+      NEXT_PUBLIC_REALTIME_SSE_URL: http://localhost:8080
+      BETTER_AUTH_SECRET: e2e-better-auth-secret-32chars!!
+      BETTER_AUTH_URL: http://localhost:3000
+      WEB_APP_ORIGIN: http://localhost:3000
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @homeguard/database exec prisma migrate deploy
+      - run: pnpm --filter @homeguard/web exec playwright install --with-deps chromium
+      - name: Note
+        run: |
+          echo "Start web + realtime-service, seed with apps/web/e2e/seed.ts, then set E2E_PROPERTY_ID before running playwright."
+          echo "This workflow is a scaffold for manual dispatch once those steps are automated."

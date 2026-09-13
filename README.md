@@ -82,10 +82,10 @@ This repository has completed Phases 1–7 of the roadmap in
   OCCUPIED + confidence) with live SSE updates and dashboard indicator.
 - **Phase 13** — periodic + security-mode snapshots and a historical
   replay page that folds events through the live reducers.
+- **Phase 14** — Playwright journey specs + seed helper, plus Vitest
+  realtime reconnect/dedup resilience coverage in CI.
 
-Not yet implemented: Playwright E2E journeys —
-see the phased roadmap in `ARCHITECTURE.md` section V for what's next
-and in what order.
+See `ARCHITECTURE.md` section V for Phase 15 (future-provider hardening).
 
 ## Technology stack
 
