@@ -76,6 +76,9 @@ export default async function PropertyPage({
           <p className="text-sm text-neutral-500">{property.timezone}</p>
         </div>
         <div className="flex items-center gap-3 text-sm text-neutral-500">
+          <Link href={`/properties/${property.id}/floor-plan`} className="hover:underline">
+            Floor plan
+          </Link>
           <Link href={`/properties/${property.id}/devices`} className="hover:underline">
             Devices
           </Link>

@@ -30,7 +30,7 @@ architectural choice.
 
 ## Status
 
-This repository has completed Phases 1–5 of the roadmap in
+This repository has completed Phases 1–6 of the roadmap in
 `ARCHITECTURE.md` section V:
 
 - **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
@@ -54,8 +54,14 @@ This repository has completed Phases 1–5 of the roadmap in
   timers, and the arm guard rejects (with an override) when hot-zone
   doors/windows are open. A full arm → intrusion → alarm → disarm cycle
   is verified live end-to-end (`apps/web/app/(dashboard)/properties/[propertyId]/{security-control,zones}*`).
+- **Phase 6** — the 2D floor plan (`apps/web/app/(dashboard)/properties/[propertyId]/floor-plan`):
+  an SVG rendered directly from `Room.polygon` and `Door`/`Window`
+  `wallOffset` geometry, with room and device selection (mouse and
+  keyboard), a click-to-place device position (a new `Device.positionX/Y`
+  column), and the same live SSE + `reduceDeviceEvent` pattern as the
+  Devices page for marker state/color.
 
-Not yet implemented: 2D/3D rendering, simulation, alerts/automation, and
+Not yet implemented: 3D rendering, simulation, alerts/automation, and
 historical replay — see the phased roadmap in `ARCHITECTURE.md` section
 V for what's next and in what order.
 

@@ -289,6 +289,13 @@ model Device {
   lastSeenAt          DateTime?
   offlineThresholdSec Int          @default(300)
 
+  // Structural placement on the 2D/3D twin — property-local coordinates,
+  // same space as Room.polygon (meters). Null until placed on the floor
+  // plan (Phase 6); the UI falls back to a computed position in that
+  // case. See ARCHITECTURE.md section K.
+  positionX Float?
+  positionY Float?
+
   // Typed current-state columns (nullable; only relevant ones populated per device category)
   doorState   DoorState?
   lockState   LockState?
