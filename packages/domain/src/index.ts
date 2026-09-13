@@ -15,6 +15,7 @@ export * from "./security/stateMachine";
 export * from "./security/mapEvent";
 export * from "./providers/SmartHomeProvider";
 export * from "./providers/SimulationProvider";
+export * from "./providers/HomeAssistantProvider.stub";
 export * from "./simulation/clock";
 export * from "./simulation/scenario";
 export * from "./alerts/evaluate";

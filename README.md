@@ -84,8 +84,11 @@ This repository has completed Phases 1–7 of the roadmap in
   replay page that folds events through the live reducers.
 - **Phase 14** — Playwright journey specs + seed helper, plus Vitest
   realtime reconnect/dedup resilience coverage in CI.
+- **Phase 15** — `HomeAssistantProvider` stub implementing the same
+  `SmartHomeProvider` interface as simulation: HA entity → domain event
+  mapping helpers, `NOT_IMPLEMENTED` command path, no live HA I/O.
 
-See `ARCHITECTURE.md` section V for Phase 15 (future-provider hardening).
+See `ARCHITECTURE.md` section V for later hardening beyond the stub.
 
 ## Technology stack
 
