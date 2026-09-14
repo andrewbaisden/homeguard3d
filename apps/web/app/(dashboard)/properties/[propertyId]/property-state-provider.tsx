@@ -4,7 +4,7 @@ import { usePropertyEventStream } from "@/lib/use-property-event-stream";
 import type { StructuralModel } from "@homeguard/domain";
 import { type OperationalSnapshot, structuralQueryKey, useRealtimeStore } from "@homeguard/state";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useState } from "react";
 
 function RealtimeBridge({
   propertyId,
@@ -64,13 +64,19 @@ export function PropertyStateProvider({
   sseBaseUrl: string;
   children: ReactNode;
 }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
-      }),
-  );
-  queryClient.setQueryData(structuralQueryKey(propertyId), structure);
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
+    });
+    // Seed in the initializer so the first child render already sees structure
+    // (avoids Missing structural model races with dynamic 3D imports).
+    client.setQueryData(structuralQueryKey(propertyId), structure);
+    return client;
+  });
+
+  useLayoutEffect(() => {
+    queryClient.setQueryData(structuralQueryKey(propertyId), structure);
+  }, [propertyId, queryClient, structure]);
 
   return (
     <QueryClientProvider client={queryClient}>

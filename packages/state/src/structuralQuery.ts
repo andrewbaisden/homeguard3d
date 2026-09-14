@@ -6,10 +6,15 @@ export function structuralQueryKey(propertyId: string) {
 }
 
 export function usePropertyStructure(propertyId: string): StructuralModel {
+  const queryClient = useQueryClient();
   const { data } = useQuery<StructuralModel>({
     queryKey: structuralQueryKey(propertyId),
-    queryFn: () =>
-      Promise.reject(new Error("Structural data must be seeded by PropertyStateProvider")),
+    queryFn: () => {
+      const cached = queryClient.getQueryData<StructuralModel>(structuralQueryKey(propertyId));
+      if (cached) return cached;
+      return Promise.reject(new Error("Structural data must be seeded by PropertyStateProvider"));
+    },
+    initialData: () => queryClient.getQueryData<StructuralModel>(structuralQueryKey(propertyId)),
     staleTime: Number.POSITIVE_INFINITY,
   });
   if (!data) throw new Error(`Missing structural model for property ${propertyId}`);
