@@ -19,6 +19,7 @@
     "db:migrate": "pnpm --filter @homeguard/database exec prisma migrate dev",
     "db:validate": "pnpm --filter @homeguard/database exec prisma validate",
     "db:studio": "pnpm --filter @homeguard/database exec prisma studio",
+    "db:seed:demo": "pnpm --filter @homeguard/web exec tsx ./scripts/seed-demo.ts",
     "prepare": "husky"
   },
   "devDependencies": {

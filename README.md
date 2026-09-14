@@ -131,8 +131,12 @@ pnpm install
 docker compose up -d          # Postgres on :5432, Redis on :6379
 cp .env.example .env          # then fill in packages/database/.env and apps/*/.env as needed
 pnpm db:migrate                # applies the schema in packages/database/prisma
+pnpm db:seed:demo              # demo@homeguard.local + rich 2-floor Maple Street home
 pnpm dev                       # starts apps/web on http://localhost:3000
 ```
+
+Demo login (after `pnpm db:seed:demo`): **demo@homeguard.local** / **demopassword123**.
+Rebuild with `DEMO_RESET=1 pnpm db:seed:demo`.
 
 Useful scripts (see root `package.json`):
 
@@ -145,6 +149,7 @@ pnpm build         # builds apps/web and apps/realtime-service
 pnpm db:generate   # regenerate the Prisma client
 pnpm db:migrate    # create/apply a migration locally
 pnpm db:studio     # Prisma Studio
+pnpm db:seed:demo  # seed demo user + 2-floor furnished home
 ```
 
 ## Environment variables
