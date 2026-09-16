@@ -8,6 +8,8 @@
 > criminal intent, and it does not guarantee property security. See
 > [Privacy & Security Limitations](#privacy--security-limitations) below.
 
+![HomeGuard 3D interface](./docs/homeguard3d.png)
+
 ## What this is
 
 HomeGuard renders a synchronized 2D floor plan and 3D digital twin of a
