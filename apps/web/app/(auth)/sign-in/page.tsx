@@ -39,12 +39,17 @@ export default function SignInPage() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Access your HomeGuard properties.</CardDescription>
+    <Card className="bg-transparent shadow-none ring-0">
+      <CardHeader className="px-0">
+        <span className="eyebrow mb-4">Your dashboard</span>
+        <CardTitle className="text-4xl font-semibold tracking-[-0.055em]">
+          Good to see you.
+        </CardTitle>
+        <CardDescription className="mt-2 text-base">
+          Sign in to check your home at a glance.
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email</Label>
@@ -64,14 +69,17 @@ export default function SignInPage() {
             )}
           </div>
           {formError && <p className="text-sm text-destructive">{formError}</p>}
-          <Button type="submit" disabled={isSubmitting} className="mt-2">
-            Sign in
+          <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2 w-full">
+            {isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
-        <p className="mt-4 text-sm text-neutral-500">
+        <p className="mt-6 text-sm text-muted-foreground">
           No account?{" "}
-          <Link href="/sign-up" className="font-medium text-foreground underline">
-            Sign up
+          <Link
+            href="/sign-up"
+            className="font-semibold text-foreground underline underline-offset-4"
+          >
+            Create one
           </Link>
         </p>
       </CardContent>

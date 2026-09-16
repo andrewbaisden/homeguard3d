@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { SecurityMachineState, SecurityMode } from "@homeguard/domain";
 import { useRealtimeStore } from "@homeguard/state";
+import { MoonStar, ShieldCheck, Sun, TentTree } from "lucide-react";
 import { useState } from "react";
 import { armSecurity, cancelArm, disarmSecurity } from "./security-actions";
 
@@ -83,15 +84,25 @@ export function SecurityControl({
   const { machineState } = snapshot;
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-4">
+    <div className="control-surface flex min-h-36 flex-col gap-4 p-5 sm:p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">Security</p>
-          <p className="text-xs text-neutral-500">
-            {snapshot.mode !== "DISARMED" ? `Mode: ${snapshot.mode}` : "Not armed"}
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-full bg-white/10 text-[#d8ff5f]">
+            <ShieldCheck className="size-5" />
+          </span>
+          <div>
+            <p className="font-semibold">Security</p>
+            <p className="text-xs text-white/50">
+              {snapshot.mode !== "DISARMED" ? `Mode: ${snapshot.mode}` : "Not armed"}
+            </p>
+          </div>
         </div>
-        <Badge variant={badgeVariant(machineState)}>{MACHINE_STATE_LABEL[machineState]}</Badge>
+        <Badge
+          variant={badgeVariant(machineState)}
+          className={machineState === "IDLE_DISARMED" ? "border-white/20 text-white" : undefined}
+        >
+          {MACHINE_STATE_LABEL[machineState]}
+        </Badge>
       </div>
       {snapshot.source === "SIMULATION" && (
         <Badge variant="secondary" className="w-fit">
@@ -101,20 +112,41 @@ export function SecurityControl({
 
       {machineState === "IDLE_DISARMED" && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={busy} onClick={() => handleArm("HOME")}>
-            Arm Home
+          <Button
+            className="bg-[#ff916f] text-[#153f3a] hover:bg-[#ffa88d]"
+            size="sm"
+            disabled={busy}
+            onClick={() => handleArm("HOME")}
+          >
+            <Sun /> Home
           </Button>
-          <Button size="sm" disabled={busy} onClick={() => handleArm("NIGHT")}>
-            Arm Night
+          <Button
+            className="bg-[#6957e8] text-white hover:bg-[#7d6bed]"
+            size="sm"
+            disabled={busy}
+            onClick={() => handleArm("NIGHT")}
+          >
+            <MoonStar /> Night
           </Button>
-          <Button size="sm" disabled={busy} onClick={() => handleArm("AWAY")}>
-            Arm Away
+          <Button
+            className="bg-[#d8ff5f] text-[#153f3a] hover:bg-[#e4ff8a]"
+            size="sm"
+            disabled={busy}
+            onClick={() => handleArm("AWAY")}
+          >
+            <TentTree /> Away
           </Button>
         </div>
       )}
 
       {machineState === "EXIT_DELAY" && (
-        <Button size="sm" variant="outline" disabled={busy} onClick={handleCancel}>
+        <Button
+          className="border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={handleCancel}
+        >
           Cancel arming
         </Button>
       )}

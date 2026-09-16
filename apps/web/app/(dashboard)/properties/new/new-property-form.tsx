@@ -55,8 +55,8 @@ export function NewPropertyForm() {
         {errors.timezone && <p className="text-xs text-destructive">{errors.timezone.message}</p>}
       </div>
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-      <Button type="submit" disabled={isSubmitting} className="mt-2">
-        Create property
+      <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2 w-full">
+        {isSubmitting ? "Creating property…" : "Create property"}
       </Button>
     </form>
   );

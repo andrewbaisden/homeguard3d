@@ -9,11 +9,13 @@ test.describe("monitoring journey", () => {
   test.skip(!process.env.E2E_PROPERTY_ID, "Set E2E_PROPERTY_ID after seeding a fixture property");
 
   test("views security, 2D, and 3D for the seeded property", async ({ page }) => {
-    const propertyId = process.env.E2E_PROPERTY_ID!;
+    const propertyId = process.env.E2E_PROPERTY_ID;
+    if (!propertyId) throw new Error("E2E_PROPERTY_ID is required");
     await page.goto(routes.signIn);
     await page.getByLabel(/email/i).fill(E2E_FIXTURE.email);
     await page.getByLabel(/password/i).fill(E2E_FIXTURE.password);
     await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).toHaveURL(routes.properties);
 
     await page.goto(routes.property(propertyId));
     await expect(page.getByText(/security/i).first()).toBeVisible();

@@ -13,14 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HomeGuard 3D",
-  description: "A smart-home digital twin and security monitoring portfolio platform.",
+  title: {
+    default: "HomeGuard 3D — Your home, in sync",
+    template: "%s · HomeGuard 3D",
+  },
+  description: "A living digital twin for smarter, calmer home security.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col overflow-x-hidden">{children}</body>
     </html>
   );
 }

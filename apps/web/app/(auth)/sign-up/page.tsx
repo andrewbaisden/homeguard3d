@@ -40,12 +40,17 @@ export default function SignUpPage() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>Set up HomeGuard for your property.</CardDescription>
+    <Card className="bg-transparent shadow-none ring-0">
+      <CardHeader className="px-0">
+        <span className="eyebrow mb-4">Start in minutes</span>
+        <CardTitle className="text-4xl font-semibold tracking-[-0.055em]">
+          Make yourself at home.
+        </CardTitle>
+        <CardDescription className="mt-2 text-base">
+          Create your account, then map your first property.
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Name</Label>
@@ -70,13 +75,16 @@ export default function SignUpPage() {
             )}
           </div>
           {formError && <p className="text-sm text-destructive">{formError}</p>}
-          <Button type="submit" disabled={isSubmitting} className="mt-2">
-            Sign up
+          <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2 w-full">
+            {isSubmitting ? "Creating account…" : "Create account"}
           </Button>
         </form>
-        <p className="mt-4 text-sm text-neutral-500">
+        <p className="mt-6 text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/sign-in" className="font-medium text-foreground underline">
+          <Link
+            href="/sign-in"
+            className="font-semibold text-foreground underline underline-offset-4"
+          >
             Sign in
           </Link>
         </p>

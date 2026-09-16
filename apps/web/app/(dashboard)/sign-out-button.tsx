@@ -9,7 +9,7 @@ export function SignOutButton() {
 
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="sm"
       onClick={async () => {
         await authClient.signOut();

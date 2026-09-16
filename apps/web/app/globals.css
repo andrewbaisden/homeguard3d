@@ -5,38 +5,38 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(0.965 0.018 94);
+  --foreground: oklch(0.285 0.055 177);
+  --card: oklch(0.995 0.012 96);
+  --card-foreground: oklch(0.285 0.055 177);
+  --popover: oklch(0.995 0.012 96);
+  --popover-foreground: oklch(0.285 0.055 177);
+  --primary: oklch(0.285 0.055 177);
+  --primary-foreground: oklch(0.98 0.018 94);
+  --secondary: oklch(0.91 0.155 122);
+  --secondary-foreground: oklch(0.255 0.052 177);
+  --muted: oklch(0.925 0.025 91);
+  --muted-foreground: oklch(0.48 0.035 177);
+  --accent: oklch(0.68 0.2 37);
+  --accent-foreground: oklch(0.22 0.04 177);
+  --destructive: oklch(0.61 0.225 29);
+  --border: oklch(0.285 0.055 177 / 14%);
+  --input: oklch(0.285 0.055 177 / 18%);
+  --ring: oklch(0.64 0.195 37);
+  --chart-1: oklch(0.68 0.2 37);
+  --chart-2: oklch(0.71 0.16 174);
+  --chart-3: oklch(0.91 0.155 122);
+  --chart-4: oklch(0.52 0.21 276);
+  --chart-5: oklch(0.69 0.19 340);
+  --radius: 1rem;
+  --sidebar: oklch(0.285 0.055 177);
+  --sidebar-foreground: oklch(0.98 0.018 94);
+  --sidebar-primary: oklch(0.68 0.2 37);
+  --sidebar-primary-foreground: oklch(0.22 0.04 177);
+  --sidebar-accent: oklch(0.91 0.155 122);
+  --sidebar-accent-foreground: oklch(0.255 0.052 177);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.68 0.2 37);
 }
 
 @theme inline {
@@ -84,9 +84,12 @@
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(circle at 12% 2%, oklch(1 0.04 108 / 68%) 0 7%, transparent 22%),
+    radial-gradient(circle at 94% 18%, oklch(0.92 0.08 169 / 45%) 0 8%, transparent 24%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
 .dark {
@@ -132,5 +135,45 @@ body {
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[0.68rem] font-bold uppercase tracking-[0.18em];
+  }
+
+  .eyebrow::before {
+    content: "";
+    @apply size-2 rounded-full bg-[#ff5b35];
+    box-shadow: 0 0 0 4px rgb(255 91 53 / 0.12);
+  }
+
+  .display-title {
+    @apply text-4xl font-semibold leading-[0.95] tracking-[-0.065em] sm:text-5xl lg:text-6xl;
+  }
+
+  .section-title {
+    @apply text-3xl font-semibold leading-none tracking-[-0.05em] sm:text-4xl;
+  }
+
+  .control-surface {
+    @apply rounded-[1.5rem] border border-white/10 bg-[#153f3a] text-[#fffbed] shadow-[0_22px_60px_rgba(21,63,58,0.14)];
+  }
+
+  .soft-grid {
+    background-image: linear-gradient(rgb(21 63 58 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(21 63 58 / 0.045) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
+
+::selection {
+  background: #d8ff5f;
+  color: #153f3a;
 }
