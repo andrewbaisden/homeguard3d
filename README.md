@@ -1,217 +1,90 @@
 # HomeGuard 3D
 
-**A smart-home digital twin and security monitoring platform.**
+See a home as it is right now: every room, door, sensor, and security signal in one place. HomeGuard 3D is a smart-home digital twin you can walk in a floor plan or in 3D, with live device state, security modes, alerts, and a full history of what happened.
 
-> HomeGuard 3D is a demo project. It is **not** a certified alarm
-> or professional monitoring product. It does not perform emergency
-> dispatch, facial/biometric recognition, or automatic determination of
-> criminal intent, and it does not guarantee property security. See
-> [Privacy & Security Limitations](#privacy--security-limitations) below.
+It runs without physical hardware. A built-in simulation plays ordinary household stories and security incidents through the same path a real device would use, and every simulated event is labeled as simulated.
 
-![HomeGuard 3D interface](./docs/homeguard3d.png)
+HomeGuard 3D is a demo. It is not a certified alarm or a professional monitoring service.
 
-## What this is
+[![CI](https://github.com/andrewbaisden/homeguard3d/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/andrewbaisden/homeguard3d/actions/workflows/ci.yml)
+![Release](https://img.shields.io/badge/release-v0.1.0-2563eb)
+![License](https://img.shields.io/badge/license-All%20rights%20reserved-6b7280)
 
-HomeGuard renders a synchronized 2D floor plan and 3D digital twin of a
-property, driven by one authoritative domain model — structural layout,
-live operational device/security state, and an append-only event
-history. A built-in simulation engine generates realistic household and
-security events (arriving home, leaving, night mode, an intrusion,
-device failure) through the **same** event pipeline a real device
-integration would use, so the platform is fully demoable without any
-physical hardware.
+![HomeGuard 3D — a live home overview with rooms, the front door, and security status](./docs/homeguard3d.png)
 
-The defining experience: **open a property → see its current state →
-move between 2D and 3D views → watch realtime activity → inspect any
-room or device → follow events through the property → receive security
-alerts → review exactly what happened.**
+## What it does
 
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design and
-[`DECISIONS.md`](./DECISIONS.md) for the reasoning behind every major
-architectural choice.
+Open a property and you are looking at its current state. Switch between the 2D floor plan and the 3D twin, select a room or a device, and follow activity as it happens. Arm or disarm the home, review alerts, and replay an earlier moment from the event history.
 
-## Status
+The demo home is a two-floor house (Maple Street) with doors, windows, locks, motion sensors, and camera status placeholders. You can also create your own property and lay out floors, rooms, and devices.
 
-This repository has completed Phases 1–7 of the roadmap in
-`ARCHITECTURE.md` section V:
+## Features
 
-- **Phase 1** — architecture, Prisma schema, workspace scaffold, CI, docs.
-- **Phase 2** — auth-gated Property/Floor/Room/Door/Window onboarding
-  (`apps/web/app/(dashboard)/properties/**`).
-- **Phase 3** — the realtime service's ingestion pipeline and SSE stream
-  (`apps/realtime-service`): a validated, idempotent, ordering-aware
-  event → device-state-projection path, provable with a manually-POSTed
-  event (see `apps/realtime-service/README.md`).
-- **Phase 4** — Device CRUD/capabilities and a live dashboard table
-  (`apps/web/app/(dashboard)/properties/[propertyId]/devices`) that
-  subscribes to the Phase 3 SSE stream and applies incoming events
-  through the exact same `reduceDeviceEvent` function the realtime
-  service uses at ingestion — proving the "one reducer, client and
-  server" principle from `ARCHITECTURE.md` section M ahead of the full
-  Phase 8 sync layer.
-- **Phase 5** — the security state machine (`packages/domain/src/security/stateMachine.ts`,
-  99 domain tests) and zones: arm/disarm/cancel commands flow through the
-  same ingestion pipeline as device events, an armed hot-zone door/motion
-  trigger escalates through `ENTRY_DELAY`/`ALERT` to `ALARM` on its own
-  timers, and the arm guard rejects (with an override) when hot-zone
-  doors/windows are open. A full arm → intrusion → alarm → disarm cycle
-  is verified live end-to-end (`apps/web/app/(dashboard)/properties/[propertyId]/{security-control,zones}*`).
-- **Phase 6** — the 2D floor plan (`apps/web/app/(dashboard)/properties/[propertyId]/floor-plan`):
-  an SVG rendered directly from `Room.polygon` and `Door`/`Window`
-  `wallOffset` geometry, with room and device selection (mouse and
-  keyboard), a click-to-place device position (a new `Device.positionX/Y`
-  column), and the same live SSE + `reduceDeviceEvent` pattern as the
-  Devices page for marker state/color.
-- **Phase 7** — the 3D digital twin (`apps/web/app/(dashboard)/properties/[propertyId]/twin-3d`):
-  a route-lazy React Three Fiber scene built from the pure
-  `@homeguard/three-adapter`, with stable domain IDs, floor isolation and
-  dollhouse views, room/opening/device inspection, and cheap live updates
-  to device markers and linked doors. Browsers without WebGL fall back to
-  the live 2D plan. Browser SSE connections now use short-lived,
-  property-scoped tokens minted only after a membership check.
-- **Phase 8** — shared 2D/3D operational sync via `@homeguard/state`
-  (Zustand + SSE), so floor plan, twin, and dashboard read one cache.
-- **Phase 9** — `SimulationProvider`, logical clock, and Normal Evening
-  fixture; realtime-service run manager with Postgres checkpoints.
-- **Phase 10** — Leaving Home, Night Mode, Intrusion, and Device Failure
-  stories plus an authenticated simulation control page
-  (`/properties/[propertyId]/simulation`) with start/pause/resume/reset
-  and speed controls. Intrusion drives the real security state machine
-  through normalized SIMULATION-sourced events.
-- **Phase 11** — alerts/automation: pure evaluators, BullMQ action
-  workers, alert lifecycle UI, and a structured rule builder.
-- **Phase 12** — Redis-backed occupancy estimate (UNKNOWN/VACANT/
-  OCCUPIED + confidence) with live SSE updates and dashboard indicator.
-- **Phase 13** — periodic + security-mode snapshots and a historical
-  replay page that folds events through the live reducers.
-- **Phase 14** — Playwright journey specs + seed helper, plus Vitest
-  realtime reconnect/dedup resilience coverage in CI.
-- **Phase 15** — `HomeAssistantProvider` stub implementing the same
-  `SmartHomeProvider` interface as simulation: HA entity → domain event
-  mapping helpers, `NOT_IMPLEMENTED` command path, no live HA I/O.
+- **Floor plan and 3D twin** of the same home, including a dollhouse view and a 2D fallback when WebGL is unavailable
+- **Live devices** — doors, locks, motion, cameras, and connectivity, updated as events arrive
+- **Security** — modes, zones, entry delay, and alarm state, with arm checks when a hot-zone opening is already open
+- **Simulation** — arriving home, leaving, night mode, intrusion, and device failure, with pause, resume, reset, and speed controls
+- **Alerts and automations** you can review and build as rules
+- **Occupancy** shown only as unknown, vacant, or occupied, with a confidence score — never as an identified person
+- **Replay** of stored history through the same state logic the live views use
 
-See `ARCHITECTURE.md` section V for later hardening beyond the stub.
+## Getting started
 
-## Technology stack
-
-- **Package manager:** pnpm (workspace monorepo)
-- **Frontend:** Next.js 16 (App Router), TypeScript (strict), Tailwind CSS, shadcn/ui
-- **Validation:** Zod
-- **Client state:** Zustand (interaction/UI state) · **Server state:** TanStack Query
-- **Database:** PostgreSQL + Prisma
-- **Auth:** Better Auth (self-hosted, Postgres-backed)
-- **Realtime/jobs:** Server-Sent Events, Redis, BullMQ — hosted on a separate persistent Node service
-- **3D:** React Three Fiber + Drei, behind a pure structural geometry adapter
-- **Testing:** Vitest, React Testing Library, Playwright
-- **Code quality:** Biome, Husky, lint-staged
-- **CI/CD:** GitHub Actions
-- **Deployment:** Vercel (Next.js app) + Fly.io (realtime service) sharing one Postgres + one Redis
-- **Observability:** Sentry, PostHog
-
-## Monorepo layout
-
-```
-homeguard3d/
-  apps/
-    web/                 Next.js 16 app — UI, server actions, command APIs, auth routes
-    realtime-service/     Persistent Node service (Fly.io) — SSE, ingestion, BullMQ, simulation clock
-  packages/
-    database/             Prisma schema + generated client, shared by both apps
-    domain/                Pure domain logic: security state machine, event schemas, providers, alerts
-    auth/                  Better Auth config + property-access authorization helper
-    three-adapter/         Pure structural-model to 3D scene-graph adapter
-    ui/                    Shared shadcn/ui-adjacent utilities (e.g. `cn`)
-    config/                Shared Zod environment schemas
-```
-
-## Local setup
-
-Prerequisites: Node 20+, pnpm 9+, Docker (for local Postgres + Redis).
+You need Node.js 20 or newer, pnpm 9 or newer, and Docker (for local Postgres and Redis).
 
 ```bash
+git clone https://github.com/andrewbaisden/homeguard3d.git
+cd homeguard3d
 pnpm install
-docker compose up -d          # Postgres on :5432, Redis on :6379
-cp .env.example .env          # then fill in packages/database/.env and apps/*/.env as needed
-pnpm db:migrate                # applies the schema in packages/database/prisma
-pnpm db:seed:demo              # demo@homeguard.local + rich 2-floor Maple Street home
-pnpm dev                       # starts apps/web on http://localhost:3000
+docker compose up -d
+cp .env.example packages/database/.env
+cp .env.example apps/web/.env.local
+cp .env.example apps/realtime-service/.env
+pnpm db:migrate
+pnpm db:seed:demo
+pnpm dev
 ```
 
-Demo login (after `pnpm db:seed:demo`): **demo@homeguard.local** / **demopassword123**.
-Rebuild with `DEMO_RESET=1 pnpm db:seed:demo`.
+The app is at [http://localhost:3000](http://localhost:3000).
 
-Useful scripts (see root `package.json`):
+Sign in with **demo@homeguard.local** / **demopassword123**. To rebuild the demo home, run `DEMO_RESET=1 pnpm db:seed:demo`.
 
-```bash
-pnpm lint          # Biome check
-pnpm lint:fix      # Biome check --write
-pnpm typecheck     # tsc --noEmit across the workspace
-pnpm test          # Vitest across packages that have tests
-pnpm build         # builds apps/web and apps/realtime-service
-pnpm db:generate   # regenerate the Prisma client
-pnpm db:migrate    # create/apply a migration locally
-pnpm db:studio     # Prisma Studio
-pnpm db:seed:demo  # seed demo user + 2-floor furnished home
-```
+`pnpm dev` starts the web app. Live updates, simulation, and alerts also need the realtime service — see [Development](./DEVELOPMENT.md#realtime-service).
 
-## Environment variables
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Start the web app |
+| `pnpm test` | Run unit tests |
+| `pnpm lint` | Check formatting and lint |
+| `pnpm typecheck` | Typecheck the workspace |
+| `pnpm build` | Build the web app and the realtime service |
 
-See [`.env.example`](./.env.example) for the full list. Summary:
+## Documentation
 
-| Variable                                  | Used by          | Purpose                                                                |
-| ----------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
-| `DATABASE_URL`                            | both             | Postgres connection string                                             |
-| `REDIS_URL`                               | both             | Redis connection string                                                |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`   | web              | Better Auth session signing + base URL                                 |
-| `FLY_INGESTION_URL`, `FLY_SERVICE_SECRET` | web              | Service-to-service call into the realtime service's ingestion endpoint |
-| `NEXT_PUBLIC_REALTIME_SSE_URL`            | web (client)     | Where the browser opens its `EventSource` connection                   |
-| `SENTRY_DSN`                              | both             | Error reporting                                                        |
-| `POSTHOG_KEY`                             | web              | Product analytics (high-level events only — see Privacy below)         |
-| `PORT`                                    | realtime-service | HTTP port for the service                                              |
+| Guide | What it covers |
+| --- | --- |
+| [Development](./DEVELOPMENT.md) | Implementation status, stack, layout, scripts, environment variables, deployment |
+| [Architecture](./ARCHITECTURE.md) | System design and how structural, live, and historical state stay in sync |
+| [Decisions](./DECISIONS.md) | Why the major technical choices were made |
+| [Testing](./TESTING.md) | How domain logic, UI, and end-to-end journeys are tested |
+| [Realtime service](./apps/realtime-service/README.md) | The process that ingests events and streams live state |
+| [Agent rules](./AGENTS.md) | Constraints for engineers and coding agents changing this repo |
+| [AI engineering](./AI_ENGINEERING.md) | How the project was planned and built |
 
-Environment variables are validated with Zod at startup (`packages/config/src/env.ts`) rather than read ad hoc via `process.env` throughout the codebase.
+## Responsible use
 
-## Database
+HomeGuard 3D is a digital-twin demo. It does not:
 
-PostgreSQL via Prisma. The schema lives at `packages/database/prisma/schema.prisma` and models three distinct state buckets — structural, operational, and historical — described in `ARCHITECTURE.md`. Never conflate these three when adding models or fields.
+- replace a monitored alarm system or guarantee that a property is secure
+- call police, fire, or any other emergency service
+- identify people by face, voice, or any other biometric
+- record or transmit real camera video or microphone audio — cameras here are status indicators with a placeholder, not a live feed
+- decide that someone is committing a crime, or take an emergency action on its own
 
-## Redis
+Simulated activity is stored and shown as simulation. It is never presented as something a physical device reported.
 
-Used for ephemeral/realtime concerns only (pub/sub fan-out, live presence estimates, BullMQ job state, simulation clock runtime state) — never as the sole store for a durable security-relevant fact. See `ARCHITECTURE.md` section I.
+## License
 
-## Testing
+Copyright © Andrew Baisden. All rights reserved.
 
-- **Vitest** for domain logic: the security state machine, event reducers, alert/automation evaluators, the geometry adapter, Zod schemas.
-- **React Testing Library** for components.
-- **Playwright** for end-to-end journeys (monitoring, simulation, intrusion scenario).
-
-See [`TESTING.md`](./TESTING.md) for the full strategy and how 3D rendering is tested without testing Three.js itself.
-
-## Deployment
-
-- **Vercel** hosts the Next.js app (UI, server actions, command APIs, the initial state fetch).
-- **Fly.io** hosts a separate persistent Node service for the SSE realtime stream, event ingestion, BullMQ workers, and the simulation clock.
-- Both share one Postgres instance and one Redis instance.
-
-See `ARCHITECTURE.md` section U for the full topology and `DECISIONS.md` ADR-005 for why SSE was chosen over WebSockets.
-
-## Privacy & Security Limitations
-
-HomeGuard is a digital-twin **simulation and demo platform**, not a
-certified security product. Specifically, it does **not**:
-
-- replace a professional monitored alarm system or guarantee property security;
-- perform emergency dispatch or notify police/fire services;
-- perform facial recognition or biometric identification — occupancy is represented only as anonymous, confidence-scored presence (`UNKNOWN` / `VACANT` / `OCCUPIED`);
-- record or transmit real camera video or microphone audio — camera devices in this MVP are status indicators only, backed by simulated feed placeholders;
-- use AI to determine criminal intent or make automatic emergency decisions.
-
-Simulated events are always tagged `source: SIMULATION` and are never presented as physical device data. See `DECISIONS.md` ADR-013 and `AGENTS.md` for the full privacy/security ruleset engineers and AI agents must follow when extending this codebase.
-
-## Further reading
-
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — system design, diagrams, deployment topology
-- [`DECISIONS.md`](./DECISIONS.md) — ADRs for every major architectural choice
-- [`TESTING.md`](./TESTING.md) — testing strategy
-- [`AGENTS.md`](./AGENTS.md) — rules for engineers and AI coding agents working in this repo
-- [`AI_ENGINEERING.md`](./AI_ENGINEERING.md) — how Claude Code was used to plan and build this project
+This repository does not include an open-source license. You may read the code and run it locally to evaluate the project. Copying, modifying, or redistributing it requires permission from the copyright holder.

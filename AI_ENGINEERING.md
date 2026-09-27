@@ -46,7 +46,7 @@ behavior in this codebase ships without that review step.
 
 - **Product direction** — what HomeGuard is and is not (see the
   Explicit MVP Non-Goals in the original brief and the Privacy/Security
-  Limitations in `README.md`).
+  Limitations in `README.md`, section "Responsible use").
 - **Architecture approval** — every ADR in `DECISIONS.md` was proposed
   by Claude Code and required explicit human sign-off before
   implementation, including the three scope decisions above.
